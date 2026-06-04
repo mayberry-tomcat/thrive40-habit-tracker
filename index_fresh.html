@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="40 Thrive">
+<meta name="theme-color" content="#264653">
+<meta name="description" content="The 40 Thrive Challenge — 40 days of sustainable healthy habits. Free app by May Tom, RD.">
+<title>40 Thrive Challenge | May Tom, RD</title>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyANEN0uVVbp__H84e1rkve2uzMFIu5-ADY",
+  authDomain: "thrive-850e5.firebaseapp.com",
+  projectId: "thrive-850e5",
+  storageBucket: "thrive-850e5.firebasestorage.app",
+  messagingSenderId: "57506700353",
+  appId: "1:57506700353:web:d5522bd77bfae1ab6c3ac0"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+window._auth = auth;
+window._db = db;
+window._fbFns = { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, doc, setDoc, getDoc };
+
+// Google Form config
+const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdE3MTXxL7c1AeIyHb0-Li8TOYOMlIJZ2dd-K3Ho2SDjrWRHQ/formResponse';
+const FORM_ENTRY_NAME = 'entry.755138598';
+const FORM_ENTRY_EMAIL = 'entry.1139772332';
+const FORM_ENTRY_OPTIN = 'entry.3';
+
+async function submitToGoogleForm(name, email, optin) {
+  const fd = new FormData();
+  fd.append(FORM_ENTRY_NAME, name);
+  fd.append(FORM_ENTRY_EMAIL, email);
+  fd.append(FORM_ENTRY_OPTIN, optin ? 'Yes' : 'No');
+  try {
+    await fetch(GOOGLE_FORM_URL, { method: 'POST', body: fd, mode: 'no-cors' });
+  } catch (e) { console.error('Form submission error:', e); }
+}
+
+// Auth state listener
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    const snap = await getDoc(doc(db, 'users', user.uid));
+    window._currentUser = user;
+    window._userState = snap.exists() ? snap.data() : null;
+    handleAuthState(user, window._userState);
+  } else {
+    window._currentUser = null;
+    window._userState = null;
+    showScreen('hero');
+  }
+});
+
+function handleAuthState(user, userState) {
+  if (!userState || !userState.habits) {
+    showScreen('onboarding');
+  } else {
+    showScreen('app');
+    updateAppUI();
+    showModal('welcome-modal');
+  }
+}
+
+function getTodayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+  const screen = document.getElementById(`screen-${name}`);
+  if (screen) screen.style.display = 'flex';
+}
+
+function showModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) {
+    modal.style.display = 'flex';
+    if (id === 'welcome-modal') setTimeout(() => closeModal(id), 2000);
+  }
+}
+
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) modal.style.display = 'none';
+}
+
+async function signup() {
+  const name = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value.trim();
+  const optin = document.getElementById('signup-optin').checked;
+  const terms = document.getElementById('signup-terms').checked;
+  const error = document.getElementById('signup-error');
+
+  if (!name || !email || !password || !terms) {
+    error.textContent = 'Please fill all fields and accept terms';
+    error.style.display = 'block';
+    return;
+  }
+
+  try {
+    const result = await window._fbFns.createUserWithEmailAndPassword(window._auth, email, password);
+    window._currentUser = result.user;
+    await submitToGoogleForm(name, email, optin);
+    error.style.display = 'none';
+    showModal('signup-success-modal');
+    setTimeout(() => {
+      closeModal('signup-success-modal');
+      showScreen('onboarding');
+    }, 2000);
+  } catch (err) {
+    error.textContent = err.message;
+    error.style.display = 'block';
+  }
+}
+
+async function login() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value.trim();
+  const error = document.getElementById('login-error');
+
+  if (!email || !password) {
+    error.textContent = 'Please enter email and password';
+    error.style.display = 'block';
+    return;
+  }
+
+  try {
+    await window._fbFns.signInWithEmailAndPassword(window._auth, email, password);
+    error.style.display = 'none';
+    document.getElementById('login-email').value = '';
+    document.getElementById('login-password').value = '';
+  } catch (err) {
+    error.textContent = err.message;
+    error.style.display = 'block';
+  }
+}
+
+async function resetPassword() {
+  const email = prompt('Enter your email:');
+  if (email) {
+    try {
+      await window._fbFns.sendPasswordResetEmail(window._auth, email);
+      alert('Check your email for reset instructions');
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  }
+}
+
+let selectedHabits = { sleep: null, nutrition: null, movement: null };
+
+function selectHabit(category, index) {
+  selectedHabits[category] = index;
+  updateHabitUI();
+}
+
+function updateHabitUI() {
+  const allSelected = selectedHabits.sleep !== null && selectedHabits.nutrition !== null && selectedHabits.movement !== null;
+  document.getElementById('start-btn').disabled = !allSelected;
+}
+
+async function startChallenge() {
+  if (!window._currentUser) return;
+  const userData = {
+    email: window._currentUser.email,
+    createdAt: new Date().toISOString(),
+    habits: selectedHabits,
+    dailyLogs: { [getTodayKey()]: { sleep: false, nutrition: false, movement: false } },
+    startDay: 1,
+    lastCompletedDay: 0
+  };
+  await window._fbFns.setDoc(window._fbFns.doc(window._db, 'users', window._currentUser.uid), userData);
+  window._userState = userData;
+  showScreen('app');
+  updateAppUI();
+}
+
+function updateAppUI() {
+  if (!window._userState || !window._userState.habits) return;
+
+  const today = getTodayKey();
+  const todayLog = window._userState.dailyLogs?.[today] || {};
+  const habits = window._userState.habits;
+  const habitNames = {
+    sleep: ['Same sleep schedule', 'Morning sunlight', 'No screens 1hr before bed'],
+    nutrition: ['20oz water on wake', '5 different veggies', '30g+ protein at breakfast'],
+    movement: ['40 squats & 20 push-ups', '7,500 steps', '3x/week strength training']
+  };
+
+  document.getElementById('current-day').textContent = window._userState.startDay;
+  let html = '';
+  for (const [cat, idx] of Object.entries(habits)) {
+    const done = todayLog[cat] || false;
+    const emoji = { sleep: '🌙', nutrition: '🌿', movement: '💪' }[cat];
+    const label = habitNames[cat][idx];
+    html += `<div style="display:flex;gap:12px;margin:10px 0;padding:12px;background:#f5f5f5;border-radius:8px;align-items:center;"><div style="width:24px;height:24px;border:2px solid #ccc;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;${done ? 'background:#2a9d8f;border-color:#2a9d8f;color:white' : ''}" onclick="toggleHabit('${cat}')">${done ? '✓' : ''}</div><div style="${done ? 'text-decoration:line-through;color:#999' : ''}">${emoji} ${label}</div></div>`;
+  }
+  document.getElementById('habits-list').innerHTML = html;
+
+  const allDone = todayLog.sleep && todayLog.nutrition && todayLog.movement;
+  document.getElementById('all-done').style.display = allDone ? 'block' : 'none';
+
+  const pct = allDone ? 100 : Math.round((Object.values(todayLog).filter(v => v).length / 3) * 100);
+  document.getElementById('progress-pct').textContent = pct + '%';
+  document.getElementById('progress-bar').style.width = pct + '%';
+}
+
+async function toggleHabit(cat) {
+  const today = getTodayKey();
+  if (!window._userState.dailyLogs[today]) {
+    window._userState.dailyLogs[today] = { sleep: false, nutrition: false, movement: false };
+  }
+  window._userState.dailyLogs[today][cat] = !window._userState.dailyLogs[today][cat];
+  await window._fbFns.setDoc(window._fbFns.doc(window._db, 'users', window._currentUser.uid), window._userState);
+  updateAppUI();
+}
+
+async function resetChallenge() {
+  if (!window._currentUser) return;
+  window._userState.startDay = 1;
+  window._userState.dailyLogs = { [getTodayKey()]: { sleep: false, nutrition: false, movement: false } };
+  await window._fbFns.setDoc(window._fbFns.doc(window._db, 'users', window._currentUser.uid), window._userState);
+  updateAppUI();
+  closeModal('reset-modal');
+}
+
+async function logout() {
+  await window._fbFns.signOut(window._auth);
+}
+
+function showTab(tab) {
+  document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
+  document.getElementById(`tab-${tab}`).style.display = 'block';
+}
+
+window.signup = signup;
+window.login = login;
+window.resetPassword = resetPassword;
+window.selectHabit = selectHabit;
+window.startChallenge = startChallenge;
+window.toggleHabit = toggleHabit;
+window.resetChallenge = resetChallenge;
+window.logout = logout;
+window.showTab = showTab;
+window.showScreen = showScreen;
+window.closeModal = closeModal;
+</script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+:root { --teal: #264653; --pink: #c44569; --gold: #f4a261; --cream: #fffbf0; }
+
+.screen { display: none; flex-direction: column; min-height: 100vh; width: 100%; }
+.screen.active { display: flex; }
+
+/* Hero Screen */
+#screen-hero {
+  background: linear-gradient(135deg, var(--teal) 0%, #1a2f3f 100%);
+  color: white;
+  padding: 20px;
+  justify-content: center;
+  align-items: center;
+}
+
+.hero-content {
+  max-width: 500px;
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.hero-content h1 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+}
+
+.hero-content p {
+  font-size: 1rem;
+  margin-bottom: 30px;
+  line-height: 1.6;
+  opacity: 0.9;
+}
+
+.auth-form {
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  max-width: 400px;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.auth-form h2 {
+  color: var(--teal);
+  margin-bottom: 20px;
+  font-size: 1.3rem;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  color: var(--teal);
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 5px;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.form-check {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.form-check input {
+  width: auto;
+  margin-top: 2px;
+}
+
+.error {
+  color: var(--pink);
+  font-size: 0.8rem;
+  margin-bottom: 15px;
+  display: none;
+}
+
+button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: 0.3s;
+}
+
+.btn-primary {
+  background: var(--pink);
+  color: white;
+  width: 100%;
+}
+
+.btn-primary:hover { opacity: 0.9; }
+
+.btn-secondary {
+  background: var(--teal);
+  color: white;
+  width: 100%;
+}
+
+.auth-links {
+  text-align: center;
+  margin-top: 15px;
+  font-size: 0.85rem;
+}
+
+.auth-links button {
+  background: none;
+  color: var(--teal);
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Onboarding Screen */
+#screen-onboarding {
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.onboard-header {
+  text-align: center;
+  margin-bottom: 30px;
+  color: var(--teal);
+}
+
+.onboard-header h2 {
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+}
+
+.category {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.category h3 {
+  color: var(--teal);
+  margin-bottom: 15px;
+  font-size: 1.1rem;
+}
+
+.habit-option {
+  padding: 12px;
+  margin-bottom: 10px;
+  border: 2px solid #eee;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.habit-option:hover {
+  border-color: var(--teal);
+  background: #f5f5f5;
+}
+
+.habit-option.selected {
+  border-color: var(--pink);
+  background: rgba(196, 69, 105, 0.1);
+}
+
+#start-btn {
+  margin: 30px 20px;
+  padding: 15px;
+  background: var(--pink);
+  color: white;
+  font-size: 1rem;
+}
+
+#start-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* App Screen */
+#screen-app {
+  padding: 20px;
+  overflow-y: auto;
+  padding-bottom: 120px;
+}
+
+.app-header {
+  color: var(--teal);
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.app-header h2 {
+  font-size: 1.5rem;
+  margin-bottom: 5px;
+}
+
+.day-badge {
+  display: inline-block;
+  background: var(--pink);
+  color: white;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-top: 10px;
+}
+
+.progress-section {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.progress-bar-wrap {
+  background: #eee;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: var(--pink);
+  transition: width 0.3s;
+}
+
+#all-done {
+  display: none;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+  text-align: center;
+  color: #856404;
+}
+
+.settings-section {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.settings-section h3 {
+  color: var(--teal);
+  margin-bottom: 10px;
+  font-size: 1rem;
+}
+
+.settings-section button {
+  width: 100%;
+  margin-top: 10px;
+}
+
+/* Bottom Navigation */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-top: 1px solid #eee;
+  display: flex;
+  gap: 0;
+}
+
+.nav-btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  background: white;
+  cursor: pointer;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.nav-btn.active {
+  color: var(--pink);
+  font-weight: 600;
+}
+
+/* Modals */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.modal {
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  max-width: 400px;
+  text-align: center;
+}
+
+.modal h2 {
+  color: var(--teal);
+  margin-bottom: 15px;
+}
+
+.modal p {
+  color: #666;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.modal button {
+  width: 100%;
+}
+</style>
+</head>
+<body>
+
+<!-- Hero/Auth Screen -->
+<div id="screen-hero" class="screen">
+  <div class="hero-content">
+    <h1>40Thrive</h1>
+    <p>40 days of real habits.<br>No extremes required.</p>
+  </div>
+
+  <div class="auth-form" id="signup-form-container">
+    <h2>Sign Up</h2>
+    <div class="form-group">
+      <label>Full Name</label>
+      <input type="text" id="signup-name" placeholder="Jane Doe">
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="signup-email" placeholder="you@example.com">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="signup-password" placeholder="Min 6 characters">
+    </div>
+    <div class="form-check">
+      <input type="checkbox" id="signup-optin">
+      <label for="signup-optin">Yes, send me wellness tips and exclusive content</label>
+    </div>
+    <div class="form-check">
+      <input type="checkbox" id="signup-terms" required>
+      <label for="signup-terms">I agree to the terms of service and privacy policy</label>
+    </div>
+    <div class="error" id="signup-error"></div>
+    <button class="btn-primary" onclick="signup()">Create Account</button>
+    <div class="auth-links">
+      <p>Already have an account? <button onclick="document.getElementById('signup-form-container').style.display='none'; document.getElementById('login-form-container').style.display='block';">Sign in here</button></p>
+    </div>
+  </div>
+
+  <div class="auth-form" id="login-form-container" style="display:none;">
+    <h2>Welcome Back</h2>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="you@example.com">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-password" placeholder="Your password">
+    </div>
+    <div class="error" id="login-error"></div>
+    <button class="btn-secondary" onclick="login()">Sign In</button>
+    <div class="auth-links">
+      <p><button onclick="resetPassword()">Forgot password?</button></p>
+      <p><button onclick="document.getElementById('login-form-container').style.display='none'; document.getElementById('signup-form-container').style.display='block';">Don't have an account? Sign up</button></p>
+    </div>
+  </div>
+</div>
+
+<!-- Onboarding Screen -->
+<div id="screen-onboarding" class="screen">
+  <div class="onboard-header">
+    <h2>Choose Your Habits</h2>
+    <p>Pick ONE from each category for 40 days</p>
+  </div>
+
+  <div class="category">
+    <h3>🌙 Sleep & Recovery</h3>
+    <div class="habit-option" onclick="selectHabit('sleep', 0); updateHabitUI()">Same sleep schedule every day</div>
+    <div class="habit-option" onclick="selectHabit('sleep', 1); updateHabitUI()">10 min morning sunlight daily</div>
+    <div class="habit-option" onclick="selectHabit('sleep', 2); updateHabitUI()">No screens 1 hour before bed</div>
+  </div>
+
+  <div class="category">
+    <h3>🌿 Nutrition</h3>
+    <div class="habit-option" onclick="selectHabit('nutrition', 0); updateHabitUI()">20oz water on wake</div>
+    <div class="habit-option" onclick="selectHabit('nutrition', 1); updateHabitUI()">5 different vegetables daily</div>
+    <div class="habit-option" onclick="selectHabit('nutrition', 2); updateHabitUI()">30g+ protein at breakfast</div>
+  </div>
+
+  <div class="category">
+    <h3>💪 Movement</h3>
+    <div class="habit-option" onclick="selectHabit('movement', 0); updateHabitUI()">40 squats & 20 push-ups daily</div>
+    <div class="habit-option" onclick="selectHabit('movement', 1); updateHabitUI()">7,500 steps daily</div>
+    <div class="habit-option" onclick="selectHabit('movement', 2); updateHabitUI()">3x/week strength training</div>
+  </div>
+
+  <button id="start-btn" class="btn-primary" onclick="startChallenge()" disabled style="margin:20px; padding:15px;">Start My 40 Days! 🎉</button>
+</div>
+
+<!-- App Screen -->
+<div id="screen-app" class="screen">
+  <div class="app-header">
+    <h2>40 Thrive Challenge</h2>
+    <div class="day-badge">Day <span id="current-day">1</span></div>
+  </div>
+
+  <div id="tab-app" style="display:block;">
+    <div class="progress-section">
+      <div style="margin-bottom:10px;">
+        <strong id="progress-pct">0%</strong> complete today
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" id="progress-bar" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div id="all-done">
+      <strong>You crushed it today! 🔥</strong><br>
+      Come back tomorrow to keep your streak alive.
+    </div>
+
+    <div class="progress-section">
+      <h3>Today's Habits</h3>
+      <div id="habits-list"></div>
+    </div>
+  </div>
+
+  <div id="tab-settings" style="display:none;">
+    <div class="settings-section">
+      <h3>📧 Email List</h3>
+      <p style="margin-bottom:10px; font-size:0.9rem; color:#666;">Get daily tips and wellness insights</p>
+      <button class="btn-primary" onclick="showTab('app')">Add Email</button>
+    </div>
+
+    <div class="settings-section">
+      <h3>🔄 Reset Challenge</h3>
+      <p style="margin-bottom:10px; font-size:0.9rem; color:#666;">Start over. Your habits stay the same.</p>
+      <button class="btn-primary" onclick="showModal('reset-modal')">Reset to Day 1</button>
+    </div>
+
+    <div class="settings-section">
+      <h3>🚪 Sign Out</h3>
+      <button class="btn-secondary" onclick="logout()">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <button class="nav-btn active" onclick="showTab('app')">✓ Today</button>
+    <button class="nav-btn" onclick="showTab('settings')">⚙️ Settings</button>
+    <button class="nav-btn" onclick="showScreen('hero')">← Back</button>
+  </div>
+</div>
+
+<!-- Modals -->
+<div id="signup-success-modal" class="modal-overlay">
+  <div class="modal">
+    <h2>🎉 Almost there!</h2>
+    <p>Finish setting up your account to join the challenge.</p>
+  </div>
+</div>
+
+<div id="welcome-modal" class="modal-overlay">
+  <div class="modal">
+    <h2>✨ Welcome back!</h2>
+    <p>Ready to crush today's habits?</p>
+  </div>
+</div>
+
+<div id="reset-modal" class="modal-overlay">
+  <div class="modal">
+    <h2>Reset Challenge?</h2>
+    <p>You'll go back to Day 1. Your habits stay the same.</p>
+    <button class="btn-primary" onclick="resetChallenge()">Yes, Reset</button>
+    <button class="btn-secondary" onclick="closeModal('reset-modal')" style="margin-top:10px;">Cancel</button>
+  </div>
+</div>
+
+</body>
+</html>

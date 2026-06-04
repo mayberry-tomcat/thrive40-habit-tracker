@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="40 Thrive">
+<meta name="theme-color" content="#264653">
+<meta name="description" content="The 40 Thrive Challenge — 40 days of sustainable healthy habits. Free app by May Tom, RD.">
+<title>40 Thrive Challenge | May Tom, RD</title>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyANEN0uVVbp__H84e1rkve2uzMFIu5-ADY",
+  authDomain: "thrive-850e5.firebaseapp.com",
+  projectId: "thrive-850e5",
+  storageBucket: "thrive-850e5.firebasestorage.app",
+  messagingSenderId: "57506700353",
+  appId: "1:57506700353:web:d5522bd77bfae1ab6c3ac0",
+  measurementId: "G-KFWCPWTBLB"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+window._auth = auth;
+window._db = db;
+window._fbFns = { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, doc, setDoc, getDoc };
+
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    const snap = await getDoc(doc(db, 'users', user.uid));
+    window._currentUser = user;
+    window._state = snap.exists() ? snap.data() : null;
+    if (window._onAuthReady) window._onAuthReady(user, window._state);
+  } else {
+    window._currentUser = null;
+    if (window._onAuthReady) window._onAuthReady(null, null);
+  }
+});
+</script>
+<style>
+:root {
+  --teal: #264653;
+  --pink: #c44569;
+  --gold: #e9c46a;
+  --cream: #f5e6ca;
+  --text-dark: #1a2c35;
+  --text-mid: #5a6e76;
+  --radius: 16px;
+  --shadow: 0 4px 20px rgba(38,70,83,0.13);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--cream); color: var(--text-dark); min-height: 100vh; overflow-x: hidden; }
+.site-bar { background: var(--teal); padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; }
+.site-bar button { background: none; border: none; color: rgba(255,255,255,0.7); font-size: 0.75rem; cursor: pointer; padding: 0; transition: color 0.2s; font-family: inherit; }
+.site-bar button:hover { color: var(--gold); }
+.site-bar .logo { color: white; font-weight: 800; font-size: 0.82rem; }
+.site-bar .logo span { color: var(--gold); font-style: italic; }
+.screen { display: none; min-height: calc(100vh - 38px); }
+.screen.active { display: flex; flex-direction: column; }
+#screen-loading { background: var(--teal); align-items: center; justify-content: center; }
+.loading-logo { text-align: center; color: white; }
+.loading-logo .num { font-size: 5rem; font-weight: 900; line-height: 0.9; }
+.loading-logo .word { font-size: 3rem; font-weight: 900; font-style: italic; color: var(--gold); }
+.loading-spinner { margin-top: 32px; width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.2); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+#screen-auth { background: var(--teal); position: relative; overflow: hidden; }
+.hero-photo { position: fixed; inset: 0; background-image: url('https://lh3.googleusercontent.com/d/1f4fI6YKXE2VbYcc-BYHpw3e-LwbXtiAf'); background-size: cover; background-position: center 15%; z-index: 0; }
+.hero-photo::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(38,70,83,0.25) 0%, rgba(38,70,83,0.35) 50%, rgba(38,70,83,0.55) 100%); }
+.auth-content { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: calc(100vh - 38px); overflow-y: auto; }
+.auth-top { padding: 52px 24px 32px; text-align: center; min-height: calc(100vh - 38px); display: flex; flex-direction: column; justify-content: center; align-items: center; }
+.auth-top .num { font-size: clamp(6rem, 16vw, 11rem); font-weight: 900; color: white; line-height: 0.9; text-shadow: 0 4px 30px rgba(0,0,0,0.4); }
+.auth-top .word { font-size: clamp(4rem, 11vw, 7.5rem); font-weight: 900; font-style: italic; color: var(--gold); line-height: 0.9; text-shadow: 0 4px 24px rgba(0,0,0,0.3); }
+.auth-top .tagline { color: var(--gold); font-size: clamp(1.2rem, 3.5vw, 1.8rem); font-weight: 700; margin: 18px 0 8px; }
+.auth-top .creator { color: rgba(255,255,255,0.9); font-size: clamp(0.9rem, 2vw, 1.2rem); letter-spacing: 0.1em; text-transform: uppercase; }
+.auth-card { background: rgba(255,255,255,0.92); backdrop-filter: blur(8px); border-radius: 24px 24px 0 0; padding: 18px 24px 32px; margin-top: 16px; box-shadow: 0 -8px 40px rgba(38,70,83,0.2); }
+.auth-tabs { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 2px solid #eee; }
+.auth-tab { flex: 1; padding: 10px; text-align: center; font-size: 0.9rem; font-weight: 700; color: var(--text-mid); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+.auth-tab.active { color: var(--teal); border-bottom-color: var(--teal); }
+.auth-panel { display: none; }
+.auth-panel.active { display: block; }
+.input-group { margin-bottom: 10px; }
+.input-group label { font-size: 0.75rem; font-weight: 700; color: var(--teal); display: block; margin-bottom: 5px; letter-spacing: 0.05em; text-transform: uppercase; }
+.input-group input { width: 100%; padding: 10px 14px; border: 2px solid #dde4e8; border-radius: 12px; font-size: 0.95rem; color: var(--text-dark); outline: none; transition: border-color 0.2s; background: rgba(245,230,202,0.7); }
+.input-group input:focus { border-color: var(--teal); background: white; }
+.gdpr-box { background: rgba(232,240,243,0.7); border-radius: 10px; padding: 9px 12px; margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; }
+.gdpr-box input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px; accent-color: var(--teal); cursor: pointer; }
+.gdpr-box label { font-size: 0.78rem; color: var(--text-mid); line-height: 1.5; cursor: pointer; }
+.gdpr-box label strong { color: var(--teal); }
+.btn { display: block; width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.2s; text-align: center; }
+.btn-primary { background: var(--pink); color: white; }
+.btn-primary:hover { background: #a83558; }
+.btn-teal { background: var(--teal); color: white; }
+.btn-outline { background: transparent; border: 2px solid var(--teal); color: var(--teal); }
+.btn-outline-pink { background: transparent; border: 2px solid var(--pink); color: var(--pink); }
+.btn-link { background: none; border: none; color: var(--teal); font-size: 0.8rem; text-decoration: underline; cursor: pointer; padding: 0; width: auto; }
+.auth-error { color: var(--pink); font-size: 0.8rem; margin-top: 8px; text-align: center; min-height: 20px; }
+.forgot-link { text-align: right; margin-top: -8px; margin-bottom: 12px; }
+#screen-onboarding { background: var(--cream); }
+.onboard-header { background: var(--teal); padding: 28px 20px 22px; color: white; text-align: center; }
+.onboard-header h2 { font-size: 1.35rem; font-weight: 800; }
+.onboard-header p { font-size: 0.82rem; color: rgba(255,255,255,0.72); margin-top: 5px; }
+.progress-dots { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.3); transition: background 0.3s; }
+.dot.active { background: var(--gold); }
+.scrollable { flex: 1; overflow-y: auto; padding: 16px 16px 90px; }
+.category-card { background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); }
+.category-card.sleep { border-top: 4px solid var(--teal); }
+.category-card.nutrition { border-top: 4px solid #2a9d8f; }
+.category-card.movement { border-top: 4px solid var(--pink); }
+.cat-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.cat-icon { font-size: 1.6rem; }
+.cat-title { font-size: 1rem; font-weight: 800; color: var(--teal); }
+.cat-sub { font-size: 0.72rem; color: var(--text-mid); }
+.habit-option { border: 2px solid #e4ecef; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s; position: relative; display: flex; align-items: flex-start; gap: 10px; }
+.habit-option:hover { border-color: var(--teal); }
+.habit-option.selected { border-color: var(--teal); background: rgba(232,240,243,0.5); }
+.opt-num { font-size: 0.68rem; font-weight: 800; color: white; background: var(--teal); border-radius: 50%; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+.opt-text { font-size: 0.85rem; color: var(--text-dark); line-height: 1.4; flex: 1; }
+.check-mark { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; display: none; }
+.habit-option.selected .check-mark { display: block; }
+#screen-app { background: var(--cream); }
+.app-header { background: var(--teal); color: white; padding: 14px 20px 12px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(38,70,83,0.25); }
+.app-logo { font-size: 1.3rem; font-weight: 900; color: white; }
+.app-logo span { color: var(--gold); font-style: italic; }
+.app-sub { font-size: 0.62rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.55); text-transform: uppercase; }
+.day-badge { background: var(--pink); color: white; font-weight: 800; font-size: 0.85rem; padding: 5px 12px; border-radius: 20px; }
+.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #dde4e8; display: flex; z-index: 100; padding-bottom: env(safe-area-inset-bottom, 0); }
+.nav-btn { flex: 1; padding: 10px 0 12px; text-align: center; background: none; border: none; cursor: pointer; font-size: 0.63rem; color: #a0b0b8; display: flex; flex-direction: column; align-items: center; gap: 3px; transition: color 0.2s; }
+.nav-btn.active { color: var(--teal); }
+.nav-icon { font-size: 1.4rem; }
+.streak-banner { background: var(--teal); color: white; border-radius: var(--radius); padding: 18px 20px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+.streak-num { font-size: 3rem; font-weight: 900; color: var(--gold); line-height: 1; }
+.streak-label { font-size: 0.72rem; color: rgba(255,255,255,0.65); margin-top: 2px; }
+.streak-pct { font-size: 0.95rem; font-weight: 800; color: var(--gold); }
+.progress-bar-wrap { background: rgba(255,255,255,0.2); border-radius: 99px; height: 6px; margin-top: 8px; width: 100px; }
+.progress-bar-fill { height: 6px; border-radius: 99px; background: var(--gold); transition: width 0.5s; }
+.today-card { background: white; border-radius: var(--radius); padding: 18px; margin-bottom: 14px; box-shadow: var(--shadow); }
+.today-card h3 { font-size: 0.88rem; font-weight: 800; color: var(--teal); margin-bottom: 12px; }
+.habit-check { display: flex; align-items: flex-start; gap: 12px; padding: 11px 0; border-bottom: 1px solid #f0f4f5; cursor: pointer; }
+.habit-check:last-child { border-bottom: none; }
+.checkbox { width: 27px; height: 27px; border: 2.5px solid #c8d8de; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; flex-shrink: 0; transition: all 0.2s; margin-top: 1px; }
+.checkbox.checked { background: var(--teal); border-color: var(--teal); color: white; }
+.check-label { font-size: 0.85rem; color: var(--text-dark); line-height: 1.4; flex: 1; }
+.check-label.done { text-decoration: line-through; color: #aabec5; }
+.cat-tag { font-size: 0.65rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 3px; }
+.quote-card { background: var(--teal); border-radius: var(--radius); padding: 20px; margin-bottom: 14px; text-align: center; }
+.quote-card blockquote { color: white; font-size: 0.88rem; line-height: 1.65; font-style: italic; }
+.quote-card blockquote em { color: var(--gold); font-style: normal; font-weight: 700; }
+.quote-card cite { color: var(--gold); font-size: 0.72rem; display: block; margin-top: 10px; }
+.all-done-banner { background: linear-gradient(135deg, #2a9d8f, #21867a); color: white; border-radius: var(--radius); padding: 18px; text-align: center; margin-bottom: 14px; }
+.all-done-banner h3 { font-size: 1rem; margin-bottom: 4px; }
+.all-done-banner p { font-size: 0.8rem; opacity: 0.9; }
+.settings-item { background: white; border-radius: 12px; padding: 18px; margin-bottom: 10px; box-shadow: var(--shadow); }
+.settings-item h4 { font-size: 0.88rem; font-weight: 800; color: var(--teal); margin-bottom: 5px; }
+.settings-item p { font-size: 0.78rem; color: var(--text-mid); line-height: 1.5; }
+.habit-summary { font-size: 0.8rem; color: var(--text-mid); line-height: 1.7; }
+.habit-summary strong { color: var(--teal); }
+.modal-overlay { position: fixed; inset: 0; background: rgba(38,70,83,0.55); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+.modal-overlay.show { display: flex; }
+.modal { background: white; border-radius: var(--radius); padding: 28px 24px; width: 100%; max-width: 380px; text-align: center; }
+.modal h3 { font-size: 1.2rem; color: var(--pink); margin-bottom: 8px; }
+.modal p { font-size: 0.84rem; color: var(--text-mid); margin-bottom: 20px; line-height: 1.55; }
+.modal-btns { display: flex; gap: 10px; }
+.modal-success { background: linear-gradient(135deg, #2a9d8f, #264653); color: white; }
+.modal-success h3 { color: white; font-size: 1.4rem; }
+.modal-success p { color: rgba(255,255,255,0.9); }
+.success-emoji { font-size: 4rem; margin-bottom: 12px; animation: pulse 0.8s ease-in-out; }
+.stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.stat-card { background: white; border-radius: 12px; padding: 14px 10px; text-align: center; box-shadow: var(--shadow); }
+.stat-num { font-size: 2rem; font-weight: 900; color: var(--teal); line-height: 1; }
+.stat-label { font-size: 0.62rem; color: var(--text-mid); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+.btn-sm { padding: 9px 16px; font-size: 0.84rem; width: auto; }
+</style>
+</head>
+<body>
+
+<div class="site-bar">
+  <button onclick="goBackToHero()">← Back to maytomrd.com</button>
+  <span class="logo">May Tom, <span>RD</span></span>
+</div>
+
+<div id="screen-loading" class="screen active">
+  <div class="loading-logo">
+    <div class="num">40</div>
+    <div class="word">Thrive</div>
+    <div style="display:flex;justify-content:center;"><div class="loading-spinner"></div></div>
+  </div>
+</div>
+
+<div id="install-banner" style="background:#e9c46a;padding:12px 16px;display:flex;align-items:flex-start;gap:10px;">
+  <span style="font-size:1.2rem;flex-shrink:0;">📱</span>
+  <div style="flex:1;">
+    <div style="font-size:0.82rem;font-weight:800;color:#264653;margin-bottom:2px;">Get easy access on your phone!</div>
+    <div style="font-size:0.75rem;color:#264653;line-height:1.5;"><strong>iPhone:</strong> Tap the Share button (□↑) in Safari, then "Add to Home Screen".<br><strong>Android:</strong> Tap the menu (⋮) in Chrome, then "Add to Home Screen".</div>
+  </div>
+  <button onclick="document.getElementById('install-banner').style.display='none'" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#264653;padding:0;">✕</button>
+</div>
+
+<div id="screen-auth" class="screen">
+  <div class="hero-photo"></div>
+  <div class="auth-content">
+    <div class="auth-top">
+      <div style="display:flex;align-items:baseline;justify-content:center;gap:10px;"><span class="num">40</span><span class="word">Thrive</span></div>
+      <div class="tagline">(Instead of 75 Hard)</div>
+      <div class="creator">Created by May Tom, RD · Functional Dietitian</div>
+    </div>
+    <div style="text-align:center;padding:16px 0 8px;animation:bounce 2s infinite;"><div style="color:rgba(255,255,255,0.6);font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">Scroll to learn more</div><div style="color:var(--gold);font-size:1.2rem;">↓</div></div>
+    <div style="padding:0 16px 0;display:flex;flex-direction:column;align-items:center;">
+      <div style="background:rgba(38,70,83,0.82);border-radius:24px;padding:24px 20px;margin-bottom:14px;max-width:540px;width:100%;"><p style="color:var(--gold);font-size:0.7rem;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:10px;">✦ A FREE 40-Day Challenge</p><h2 style="color:white;font-size:1.5rem;font-weight:900;line-height:1.2;margin-bottom:14px;">Real habits. Real results.<br><em style="color:var(--gold);">No extremes required.</em></h2><p style="color:rgba(255,255,255,0.85);font-size:0.86rem;line-height:1.7;margin-bottom:16px;">If you've ever started a health challenge and quit by week two — this is for you. 40 Thrive isn't about perfection or punishment. It's about choosing <em>one</em> simple habit from three key areas and showing up for 40 days.</p><div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;"><div style="display:flex;gap:12px;align-items:center;background:rgba(255,255,255,0.08);border-radius:12px;padding:10px 14px;"><span style="font-size:1.3rem;">🌙</span><div><div style="color:var(--gold);font-size:0.7rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;">Sleep & Recovery</div><div style="color:rgba(255,255,255,0.8);font-size:0.8rem;">One habit that genuinely restores you</div></div></div><div style="display:flex;gap:12px;align-items:center;background:rgba(255,255,255,0.08);border-radius:12px;padding:10px 14px;"><span style="font-size:1.3rem;">🌿</span><div><div style="color:var(--gold);font-size:0.7rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;">Nutrition</div><div style="color:rgba(255,255,255,0.8);font-size:0.8rem;">One habit built around real food, not rules</div></div></div><div style="display:flex;gap:12px;align-items:center;background:rgba(255,255,255,0.08);border-radius:12px;padding:10px 14px;"><span style="font-size:1.3rem;">💪</span><div><div style="color:var(--gold);font-size:0.7rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;">Movement</div><div style="color:rgba(255,255,255,0.8);font-size:0.8rem;">One habit that fits your body and your schedule</div></div></div></div></div>
+      <div style="text-align:center;margin-bottom:12px;"><button onclick="openAuthModal('signup')" style="display:inline-block;width:auto;background:var(--pink);color:white;border:none;border-radius:50px;padding:16px 32px;font-size:1rem;font-weight:700;cursor:pointer;box-shadow:0 8px 28px rgba(196,69,105,0.45);">🎉 Join Free — Start My 40 Days</button></div>
+      <div style="text-align:center;margin-bottom:20px;"><button class="btn-link" onclick="openAuthModal('login')" style="color:rgba(255,255,255,0.75);font-size:0.84rem;">Already joined? <strong style="color:var(--gold);">Sign in here →</strong></button></div>
+
+      <div style="background:rgba(255,255,255,0.95);backdrop-filter:blur(12px);border-radius:24px;overflow:hidden;margin-bottom:0;max-width:540px;width:100%;">
+        <div style="width:100%;height:280px;overflow:hidden;position:relative;">
+          <img src="https://lh3.googleusercontent.com/d/1aDp3lAkYmbOGLzLeRcBxysJYLsTYuS5k" alt="May Tom, RD" style="width:100%;height:100%;object-fit:cover;object-position:center 20%;">
+          <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 50%,rgba(255,255,255,0.95) 100%);"></div>
+        </div>
+        <div style="padding:4px 22px 28px;">
+          <p style="color:var(--pink);font-size:0.7rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;">Meet Your Guide</p>
+          <h3 style="color:var(--teal);font-size:1.25rem;font-weight:900;line-height:1.2;margin-bottom:4px;">May Tom, RD</h3>
+          <p style="color:var(--text-mid);font-size:0.76rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:16px;">Functional Medicine Dietitian · 15+ Years Experience</p>
+          <p style="color:var(--text-dark);font-size:0.88rem;line-height:1.75;margin-bottom:12px;">Hi, I'm May! I'm a nerdy functional medicine dietitian who's spent almost 15 years in the field — helping everyone from CEOs to celebrities at a high-end destination resort, to thinking critically alongside the best integrative medicine doctors in supporting patients struggling with chronic, complex diseases.</p>
+          <p style="color:var(--text-dark);font-size:0.88rem;line-height:1.75;margin-bottom:12px;">What I noticed across all of them — from the ultra-privileged to the ultra-sick — is that <strong style="color:var(--teal);">everyone still needed the same basic habits to thrive.</strong> The fundamentals aren't boring. They're the whole game.</p>
+          <p style="color:var(--text-dark);font-size:0.88rem;line-height:1.75;margin-bottom:16px;">That's why I created my own <strong style="color:var(--teal);">Thrive Again Method</strong> and the <strong style="color:var(--teal);">Thrive 40 Project</strong> — a group program where women in midlife get expert-guided support in an intimate community setting to truly learn how to thrive again. This is our birthright. <em>Let's reclaim it together.</em></p>
+          <a href="https://calendar.app.google/tThrrV9Lk9fuqdKv7" target="_blank" style="display:block;text-align:center;background:var(--pink);color:white;border-radius:12px;padding:15px;font-weight:700;font-size:0.92rem;text-decoration:none;box-shadow:0 6px 20px rgba(196,69,105,0.3);margin-bottom:12px;">📅 Book a Free Discovery Call</a>
+          <p style="text-align:center;font-size:0.72rem;color:var(--text-mid);margin-bottom:12px;">No pressure — just a conversation about where you are and where you want to be.</p>
+          <div style="margin-top:16px;background:var(--teal-bg);border-radius:14px;padding:16px 18px;text-align:center;">
+            <p style="font-size:0.85rem;color:var(--teal);line-height:1.6;margin-bottom:12px;">Want to learn more from me? Watch my YouTube videos for a download from me to you! 🎁</p>
+            <a href="https://www.youtube.com/@maytomrd" target="_blank" style="display:inline-block;background:var(--teal);color:white;border-radius:10px;padding:12px 20px;font-weight:700;font-size:0.9rem;text-decoration:none;box-shadow:0 4px 14px rgba(38,70,83,0.3);">Watch on YouTube</a>
+          </div>
+        </div>
+      </div>
+      <div style="padding:24px 0;text-align:center;color:rgba(255,255,255,0.5);font-size:0.72rem;">© 2024 May Tom, RD · maytomrd.com</div>
+    </div>
+  </div>
+</div>
+
+<div id="screen-onboarding" class="screen">
+  <div class="onboard-header">
+    <h2>Choose Your Habits</h2>
+    <p>Pick ONE from each category — you'll do these for 40 days</p>
+    <div class="progress-dots"><div class="dot active" id="dot-0"></div><div class="dot" id="dot-1"></div><div class="dot" id="dot-2"></div></div>
+  </div>
+  <div class="scrollable">
+    <div class="category-card sleep">
+      <div class="cat-header"><span class="cat-icon">🌙</span><div><div class="cat-title">Sleep & Recovery</div><div class="cat-sub">Choose ONE habit</div></div></div>
+      <div class="habit-option sleep" onclick="selectHabit('sleep',0,this)"><span class="opt-num">1</span><span class="opt-text">Go to bed & wake at the <strong>SAME time</strong> every day (aim for 7–8 hours)</span><span class="check-mark">✅</span></div>
+      <div class="habit-option sleep" onclick="selectHabit('sleep',1,this)"><span class="opt-num">2</span><span class="opt-text">Get <strong>10 minutes of morning sunlight</strong> within 60 minutes of waking</span><span class="check-mark">✅</span></div>
+      <div class="habit-option sleep" onclick="selectHabit('sleep',2,this)"><span class="opt-num">3</span><span class="opt-text"><strong>No screens 1 hour</strong> before bed</span><span class="check-mark">✅</span></div>
+    </div>
+    <div class="category-card nutrition">
+      <div class="cat-header"><span class="cat-icon">🌿</span><div><div class="cat-title">Nutrition</div><div class="cat-sub">Choose ONE habit</div></div></div>
+      <div class="habit-option nutrition" onclick="selectHabit('nutrition',0,this)"><span class="opt-num">1</span><span class="opt-text">Drink <strong>20 oz of filtered water</strong> upon waking</span><span class="check-mark">✅</span></div>
+      <div class="habit-option nutrition" onclick="selectHabit('nutrition',1,this)"><span class="opt-num">2</span><span class="opt-text">Eat <strong>5 DIFFERENT vegetables</strong> per day</span><span class="check-mark">✅</span></div>
+      <div class="habit-option nutrition" onclick="selectHabit('nutrition',2,this)"><span class="opt-num">3</span><span class="opt-text">Have <strong>30+ grams of protein</strong> at breakfast</span><span class="check-mark">✅</span></div>
+    </div>
+    <div class="category-card movement">
+      <div class="cat-header"><span class="cat-icon">🏋️</span><div><div class="cat-title">Movement</div><div class="cat-sub">Choose ONE habit</div></div></div>
+      <div class="habit-option movement" onclick="selectHabit('movement',0,this)"><span class="opt-num">1</span><span class="opt-text">Do <strong>40 squats & 20 push-ups</strong> after each meal</span><span class="check-mark">✅</span></div>
+      <div class="habit-option movement" onclick="selectHabit('movement',1,this)"><span class="opt-num">2</span><span class="opt-text">Get <strong>7,500 steps</strong> in a day</span><span class="check-mark">✅</span></div>
+      <div class="habit-option movement" onclick="selectHabit('movement',2,this)"><span class="opt-num">3</span><span class="opt-text">Complete <strong>3 strength training workouts/week</strong> (30 min minimum each)</span><span class="check-mark">✅</span></div>
+    </div>
+    <button class="btn btn-primary" id="confirm-habits-btn" onclick="confirmHabits()" disabled>Start My 40 Days! 🎉</button>
+    <p style="font-size:0.8rem;color:var(--text-mid);text-align:center;margin-top:8px;">Your habits are locked in once the challenge begins.</p>
+  </div>
+</div>
+
+<div id="screen-app" class="screen">
+  <div class="app-header">
+    <div><div class="app-logo">40<span>Thrive</span></div><div class="app-sub">Daily Habit Tracker</div></div>
+    <div class="day-badge" id="day-badge">Day 1</div>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:0 16px 110px;">
+    <div style="margin-top:16px;">
+      <div class="streak-banner">
+        <div>
+          <div class="streak-num" id="day-num">1</div>
+          <div class="streak-label">Current Day</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="streak-pct" id="completion-pct">0%</div>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+    <div id="app-content">
+      <div class="today-card"><h3 id="today-habits-label">Today's Habits</h3><div id="today-list"></div></div>
+      <div class="quote-card"><blockquote>"The secret of getting ahead is getting started." — <em>Mark Twain</em></blockquote></div>
+      <div id="all-done-container" style="display:none;"><div class="all-done-banner"><h3>You crushed it today! 🔥</h3><p>All habits complete. Come back tomorrow to keep your streak alive.</p></div></div>
+      <div class="stats-row"><div class="stat-card"><div class="stat-num" id="stat-days">0</div><div class="stat-label">Days<br>Completed</div></div><div class="stat-card"><div class="stat-num" id="stat-pct">0%</div><div class="stat-label">Overall<br>Progress</div></div><div class="stat-card"><div class="stat-num" id="stat-streak">0</div><div class="stat-label">Current<br>Streak</div></div></div>
+      <div id="progress-section" style="display:none;">
+        <h3 style="font-size:0.95rem;font-weight:800;color:var(--teal);margin:16px 0 12px;">📊 40-Day Progress</h3>
+        <div id="progress-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:16px;"></div>
+      </div>
+      <div style="background:white;border-radius:var(--radius);padding:18px;margin-bottom:14px;box-shadow:var(--shadow);">
+        <h4 style="font-size:0.88rem;font-weight:800;color:var(--teal);margin-bottom:8px;">📖 Your 40-Day Challenge</h4>
+        <div class="habit-summary">
+          <strong>🌙 Sleep/Recovery:</strong> <span id="sel-sleep">—</span><br>
+          <strong>🌿 Nutrition:</strong> <span id="sel-nutrition">—</span><br>
+          <strong>💪 Movement:</strong> <span id="sel-movement">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom-nav">
+    <button class="nav-btn active" onclick="switchTab('app')"><span class="nav-icon">✓</span>Today</button>
+    <button class="nav-btn" onclick="switchTab('progress')"><span class="nav-icon">📊</span>Progress</button>
+    <button class="nav-btn" onclick="switchTab('settings')"><span class="nav-icon">⚙️</span>Settings</button>
+  </div>
+</div>
+
+<div id="settings-panel" style="display:none;position:fixed;inset:0;background:var(--cream);z-index:99;overflow-y:auto;padding:14px 16px 110px;">
+  <div style="text-align:center;margin-bottom:24px;margin-top:12px;"><h2 style="color:var(--teal);font-size:1.3rem;font-weight:900;margin-bottom:6px;">Settings</h2><p style="font-size:0.8rem;color:var(--text-mid);">Manage your 40 Thrive challenge</p></div>
+  <div class="settings-item"><h4>📧 Email List</h4><p style="margin-bottom:10px;">Join our email list for daily tips, weekly challenges, and exclusive nutrition insights.</p><button class="btn btn-outline" onclick="submitEmail()" style="width:100%;margin:0;">Add Email</button></div>
+  <div class="settings-item"><h4>🔄 Reset Challenge</h4><p style="margin-bottom:10px;">Start your 40-day journey over. Your selected habits stay the same.</p><button class="btn btn-outline-pink" onclick="confirmReset()" style="width:100%;margin:0;">Reset to Day 1</button></div>
+  <div class="settings-item"><h4>🚪 Sign Out</h4><p style="margin-bottom:10px;">Sign out of your 40 Thrive account.</p><button class="btn btn-outline" onclick="logOut()" style="width:100%;margin:0;">Sign Out</button></div>
+  <div style="background:white;border-radius:var(--radius);padding:14px;margin-bottom:14px;box-shadow:var(--shadow);"><p style="font-size:0.75rem;color:var(--text-mid);line-height:1.6;">💡 <strong style="color:var(--teal);">Pro tip:</strong> If you miss a day, we'll automatically reset you to Day 1 (except if your movement habit is 3x/week strength training — you can have unchecked days as long as you complete 3 workouts that week).</p></div>
+  <div style="text-align:center;color:#aaa;font-size:0.7rem;margin-top:24px;">© 2024 May Tom, RD</div>
+</div>
+
+<div class="modal-overlay" id="signup-modal">
+  <div class="modal"><div style="font-size:2rem;margin-bottom:10px;">🎉</div><h3>Almost there!</h3><p>Finish setting up your account to join the challenge.</p><div class="modal-btns"><button class="btn btn-primary" onclick="closeModal('signup-modal');setTimeout(()=>{showScreen('onboarding')},300);" style="flex:1;">Next</button></div></div>
+</div>
+
+<div class="modal-overlay" id="welcome-modal">
+  <div class="modal modal-success"><div class="success-emoji">✨</div><h3>Welcome back!</h3><p>Ready to crush today's habits?</p></div>
+</div>
+
+<div class="modal-overlay" id="reset-confirm-modal">
+  <div class="modal"><h3>Are you sure?</h3><p>You'll go back to Day 1, but your selected habits stay the same.</p><div class="modal-btns"><button class="btn btn-outline" onclick="closeModal('reset-confirm-modal')" style="flex:1;">Cancel</button><button class="btn btn-primary" onclick="resetAll();closeModal('reset-confirm-modal');" style="flex:1;">Yes, Reset</button></div></div>
+</div>
+
+<div class="modal-overlay" id="email-modal">
+  <div class="modal">
+    <h3>Join Our Email List</h3>
+    <p>Get daily tips, weekly challenges, and exclusive nutrition insights!</p>
+    <div class="input-group"><label>Your Name</label><input type="text" id="email-name-input" placeholder="Jane Doe"></div>
+    <div class="input-group"><label>Your Email</label><input type="email" id="email-input" placeholder="jane@example.com"></div>
+    <div class="gdpr-box">
+      <input type="checkbox" id="email-optin-check" checked>
+      <label for="email-optin-check">Yes, I'd like to receive wellness tips and offers from May Tom, RD</label>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-outline" onclick="closeModal('email-modal')" style="flex:1;">Maybe later</button>
+      <button class="btn btn-primary" onclick="submitEmailForm()" style="flex:1;">Subscribe</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Google Form Configuration
+const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdE3MTXxL7c1AeIyHb0-Li8TOYOMlIJZ2dd-K3Ho2SDjrWRHQ/formResponse';
+const FORM_ENTRY_NAME  = 'entry.755138598';
+const FORM_ENTRY_EMAIL = 'entry.1139772332';
+const FORM_ENTRY_OPTIN = 'entry.3';
+
+let selectedHabits = { sleep: null, nutrition: null, movement: null };
+
+async function sendGoogleFormRequest(data) {
+  const fd = new FormData();
+  fd.append(FORM_ENTRY_NAME, data.name);
+  fd.append(FORM_ENTRY_EMAIL, data.email);
+  fd.append(FORM_ENTRY_OPTIN, data.optin ? 'Yes' : 'No');
+  try {
+    await fetch(GOOGLE_FORM_URL, { method: 'POST', body: fd, mode: 'no-cors' });
+  } catch (e) { console.error('Form submission error:', e); }
+}
+
+function selectHabit(cat, idx, elem) {
+  document.querySelectorAll('.habit-option.' + cat).forEach(e => e.classList.remove('selected'));
+  elem.classList.add('selected');
+  selectedHabits[cat] = idx;
+  document.getElementById('confirm-habits-btn').disabled = !(selectedHabits.sleep !== null && selectedHabits.nutrition !== null && selectedHabits.movement !== null);
+}
+
+async function confirmHabits() {
+  if (!window._currentUser) return;
+  const userData = {
+    email: window._currentUser.email,
+    createdAt: new Date().toISOString(),
+    habits: {
+      sleep: selectedHabits.sleep,
+      nutrition: selectedHabits.nutrition,
+      movement: selectedHabits.movement
+    },
+    dailyLogs: { [getTodayKey()]: { sleep: false, nutrition: false, movement: false } },
+    startDay: 1,
+    lastCompletedDay: 0,
+    submittedEmail: false
+  };
+  await window._fbFns.setDoc(window._fbFns.doc(window._db, 'users', window._currentUser.uid), userData);
+  window._state = userData;
+  showModal('signup-modal');
+  setTimeout(() => updateAppUI(), 500);
+}
+
+function getTodayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  if (name === 'auth') document.getElementById('settings-panel').style.display = 'none';
+}
+
+function showModal(id) {
+  document.getElementById(id).classList.add('show');
+  if (id === 'welcome-modal') setTimeout(() => closeModal(id), 2000);
+  if (id === 'signup-modal') setTimeout(() => closeModal(id), 2000);
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+window._onAuthReady = (user, state) => {
+  if (!user) { showScreen('auth'); return; }
+  if (!state || !state.habits) { showScreen('onboarding'); return; }
+  window._state = state;
+  showScreen('app');
+  checkMissedDay();
+  updateAppUI();
+  showModal('welcome-modal');
+};
+
+function updateAppUI() {
+  if (!window._state || !window._state.habits) return;
+  const currentDay = window._state.startDay;
+  const todayKey = getTodayKey();
+  const todayLog = window._state.dailyLogs?.[todayKey] || {};
+  const habits = window._state.habits;
+  const habitNames = { sleep: ['Same sleep schedule', 'Morning sunlight', 'No screens 1hr before bed'], nutrition: ['20oz water on wake', '5 different veggies', '30g+ protein at breakfast'], movement: ['40 squats & 20 push-ups', '7,500 steps', '3x/week strength training'] };
+
+  document.getElementById('day-badge').textContent = `Day ${currentDay}`;
+  document.getElementById('day-num').textContent = currentDay;
+  document.getElementById('sel-sleep').textContent = habitNames.sleep[habits.sleep] || '—';
+  document.getElementById('sel-nutrition').textContent = habitNames.nutrition[habits.nutrition] || '—';
+  document.getElementById('sel-movement').textContent = habitNames.movement[habits.movement] || '—';
+
+  let html = '';
+  for (const [cat, idx] of Object.entries(habits)) {
+    const done = todayLog[cat] || false;
+    const emoji = { sleep: '🌙', nutrition: '🌿', movement: '💪' }[cat];
+    const label = habitNames[cat][idx];
+    html += `<div class="habit-check"><div class="checkbox ${done ? 'checked' : ''}" onclick="toggleHabit('${cat}',this);">${done ? '✓' : ''}</div><div class="check-label ${done ? 'done' : ''}">${emoji} ${label}</div></div>`;
+  }
+  document.getElementById('today-list').innerHTML = html;
+
+  const allDone = todayLog.sleep && todayLog.nutrition && todayLog.movement;
+  document.getElementById('all-done-container').style.display = allDone ? 'block' : 'none';
+
+  const pct = allDone ? 100 : Math.round((Object.values(todayLog).filter(v => v).length / 3) * 100);
+  document.getElementById('completion-pct').textContent = pct + '%';
+  document.getElementById('progress-fill').style.width = pct + '%';
+
+  let daysCompleted = 0;
+  for (let i = 1; i < currentDay; i++) {
+    const log = window._state.dailyLogs?.[getKeyForDay(i)] || {};
+    if (log.sleep && log.nutrition && log.movement) daysCompleted++;
+  }
+  document.getElementById('stat-days').textContent = daysCompleted;
+  document.getElementById('stat-pct').textContent = Math.round((daysCompleted / currentDay) * 100) + '%';
+  document.getElementById('stat-streak').textContent = daysCompleted;
+
+  let progressHTML = '';
+  for (let i = 1; i <= 40; i++) {
+    const log = window._state.dailyLogs?.[getKeyForDay(i)] || {};
+    const complete = log.sleep && log.nutrition && log.movement;
+    const isFuture = i > currentDay;
+    const color = isFuture ? '#eee' : complete ? '#2a9d8f' : '#e9c46a';
+    progressHTML += `<div style="width:100%;aspect-ratio:1/1;background:${color};border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:white;font-weight:800;">${i}</div>`;
+  }
+  document.getElementById('progress-grid').innerHTML = progressHTML;
+}
+
+function getKeyForDay(day) {
+  const start = new Date(window._state.createdAt);
+  const d = new Date(start.getTime() + (day - 1) * 86400000);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+async function toggleHabit(cat, elem) {
+  const todayKey = getTodayKey();
+  if (!window._state.dailyLogs[todayKey]) window._state.dailyLogs[todayKey] = { sleep: false, nutrition: false, movement: false };
+  window._state.dailyLogs[todayKey][cat] = !window._state.dailyLogs[todayKey][cat];
+  await window._fbFns.setDoc(window._fbFns.doc(window._db, 'users', window._currentUser.uid), window._state);
+  updateAppUI();
+}
+
+function checkMissedDay() {
+  const todayKey = getTodayKey();
+  if (window._state.lastCompletedDay === window._state.startDay - 1) return;
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth()+1).padStart(2,'0')}-${String(yesterday.getDate()).padStart(2,'0')}`;
+  const yesterdayLog = window._state.dailyLogs?.[yesterdayKey];
+  if (!yesterdayLog || (!yesterdayLog.sleep || !yesterdayLog.nutrition || (window._state.habits.movement !== 2 && !yesterdayLog.movement))) {
+    resetAll();
+  }
+}
+
+async function resetAll() {
+  if (!window._currentUser) return;
+  window._state.startDay = 1;
+  window._state.dailyLogs = { [getTodayKey()]: { sleep: false, nutrition: false, movement: false } };
+  window._state.lastCompletedDay = 0;
+  await window._fbFns.setDoc(window._fbFns.doc(window._db, 'users', window._currentUser.uid), window._state);
+  updateAppUI();
+}
+
+function confirmReset() {
+  showModal('reset-confirm-modal');
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  event.target.closest('.nav-btn').classList.add('active');
+  if (tab === 'app') {
+    document.getElementById('app-content').style.display = 'block';
+    document.getElementById('progress-section').style.display = 'block';
+    document.getElementById('settings-panel').style.display = 'none';
+  } else if (tab === 'progress') {
+    document.getElementById('app-content').style.display = 'block';
+    document.getElementById('progress-section').style.display = 'block';
+    document.getElementById('settings-panel').style.display = 'none';
+  } else {
+    document.getElementById('app-content').style.display = 'none';
+    document.getElementById('progress-section').style.display = 'none';
+    document.getElementById('settings-panel').style.display = 'block';
+  }
+}
+
+function submitEmail() {
+  showModal('email-modal');
+}
+
+async function submitEmailForm() {
+  const name = document.getElementById('email-name-input').value.trim();
+  const email = document.getElementById('email-input').value.trim();
+  const optin = document.getElementById('email-optin-check').checked;
+  if (!name || !email) { alert('Please fill in all fields'); return; }
+  await sendGoogleFormRequest({ name, email, optin });
+  window._state.submittedEmail = true;
+  await window._fbFns.setDoc(window._fbFns.doc(window._db, 'users', window._currentUser.uid), window._state);
+  closeModal('email-modal');
+  alert('Thanks for joining! Check your email for a welcome message.');
+}
+
+async function logOut() {
+  await window._fbFns.signOut(window._auth);
+  showScreen('auth');
+}
+
+function goBackToHero() {
+  location.href = 'https://maytomrd.com';
+}
+
+function openAuthModal(type) {
+  const card = document.querySelector('.auth-card');
+  if (!card) return;
+  const tabs = document.querySelectorAll('.auth-tab');
+  const panels = document.querySelectorAll('.auth-panel');
+  if (tabs.length === 0 || panels.length === 0) return;
+
+  const idx = type === 'signup' ? 0 : 1;
+  tabs.forEach(t => t.classList.remove('active'));
+  panels.forEach(p => p.classList.remove('active'));
+  if (tabs[idx]) tabs[idx].classList.add('active');
+  if (panels[idx]) panels[idx].classList.add('active');
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.auth-tab').forEach((tab, idx) => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelectorAll('.auth-panel')[idx].classList.add('active');
+    });
+  });
+
+  const signupForm = document.getElementById('signup-form');
+  if (signupForm) {
+    signupForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('signup-email').value;
+      const password = document.getElementById('signup-password').value;
+      const gdpr = document.getElementById('gdpr-check').checked;
+      if (!email || !password || !gdpr) { document.getElementById('signup-error').textContent = 'Please fill all fields and accept terms'; return; }
+      try {
+        const result = await window._fbFns.createUserWithEmailAndPassword(window._auth, email, password);
+        window._currentUser = result.user;
+        window._state = null;
+        showScreen('onboarding');
+        showModal('signup-modal');
+      } catch (err) {
+        document.getElementById('signup-error').textContent = err.message;
+      }
+    });
+  }
+
+  const loginForm = document.getElementById('login-form');
+  if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+      try {
+        await window._fbFns.signInWithEmailAndPassword(window._auth, email, password);
+      } catch (err) {
+        document.getElementById('login-error').textContent = err.message;
+      }
+    });
+  }
+
+  const forgotBtn = document.getElementById('forgot-btn');
+  if (forgotBtn) {
+    forgotBtn.addEventListener('click', async () => {
+      const email = prompt('Enter your email address:');
+      if (!email) return;
+      try {
+        await window._fbFns.sendPasswordResetEmail(window._auth, email);
+        alert('Check your email for password reset instructions.');
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    });
+  }
+});
+</script>
+
+<div style="display:none;">
+<div id="signup-form"><form><div class="input-group"><label>Email</label><input type="email" id="signup-email" placeholder="your@email.com" required></div><div class="input-group"><label>Password</label><input type="password" id="signup-password" placeholder="Min. 6 characters" required></div><div class="gdpr-box"><input type="checkbox" id="gdpr-check" required><label for="gdpr-check">I agree to the <strong>terms of service</strong> and <strong>privacy policy</strong></label></div><div class="auth-error" id="signup-error"></div><button type="submit" class="btn btn-primary" style="margin-top:10px;">Create Account</button></form></div>
+<div id="login-form"><form><div class="input-group"><label>Email</label><input type="email" id="login-email" placeholder="your@email.com" required></div><div class="input-group"><label>Password</label><input type="password" id="login-password" placeholder="Your password" required></div><div class="forgot-link"><button type="button" class="btn-link" id="forgot-btn">Forgot password?</button></div><div class="auth-error" id="login-error"></div><button type="submit" class="btn btn-primary">Sign In</button></form></div>
+</div>
+
+</body>
+</html>
