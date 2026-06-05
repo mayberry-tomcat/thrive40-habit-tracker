@@ -6,6 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="40 Thrive">
+<link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#264653">
 <meta name="description" content="The 40 Thrive Challenge — 40 days of sustainable healthy habits. Free app by May Tom, RD.">
 <title>40 Thrive Challenge | May Tom, RD</title>
@@ -32,7 +33,7 @@ const db = getFirestore(app);
 
 // ── GOOGLE FORM for email capture ──
 // Replace FORM_ID and entry IDs once you create your Google Form
-const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdE3MTxL7c1AeIyHb0-Li8T0Y0M1lJZ2dd-K3Ho2SDjrWRHQ/formResponse';
+const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdE3MTXxL7c1AeIyHb0-Li8TOYOMlIJZ2dd-K3Ho2SDjrWRHQ/formResponse';
 const FORM_ENTRY_NAME  = 'entry.2043239408';
 const FORM_ENTRY_EMAIL = 'entry.1257306087';
 const FORM_ENTRY_OPTIN = 'entry.202217649';
@@ -808,7 +809,7 @@ async function doMagicLink(){
   errEl.textContent='';
   if(!email){errEl.textContent='Please enter your email address above first.';return;}
   const actionCodeSettings={
-    url:'https://maytomrd.com/challenge.html',
+    url:'https://maytomrd.com/',
     handleCodeInApp:true
   };
   try{
@@ -837,15 +838,11 @@ async function doSignOut(){
 
 /* ─── GOOGLE FORM SUBMISSION ─── */
 function submitToGoogleForm(name,email,optin){
-  // Submits silently in background — no CORS issue with no-cors fetch
-  // Replace YOUR_GOOGLE_FORM_ACTION_URL and entry IDs after creating your form
-  const FORM_URL='YOUR_GOOGLE_FORM_ACTION_URL';
-  if(FORM_URL.includes('YOUR_'))return; // skip until configured
   const body=new FormData();
-  body.append('entry.YOUR_NAME_ENTRY_ID',name);
-  body.append('entry.YOUR_EMAIL_ENTRY_ID',email);
-  body.append('entry.202217649',optin?'Yes':'No');
-  fetch(FORM_URL,{method:'POST',body,mode:'no-cors'}).catch(()=>{});
+  body.append(FORM_ENTRY_NAME,name);
+  body.append(FORM_ENTRY_EMAIL,email);
+  body.append(FORM_ENTRY_OPTIN,optin?'Yes':'No');
+  fetch(GOOGLE_FORM_URL,{method:'POST',body,mode:'no-cors'}).catch(()=>{});
 }
 
 /* ─── ONBOARDING ─── */
