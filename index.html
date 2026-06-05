@@ -57,17 +57,23 @@ if (isSignInWithEmailLink(auth, window.location.href)) {
 
 // Auth state listener
 onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    // Load user data from Firestore
-    const snap = await getDoc(doc(db, 'users', user.uid));
-    if (snap.exists()) {
-      window._state = snap.data();
+  try {
+    if (user) {
+      // Load user data from Firestore
+      const snap = await getDoc(doc(db, 'users', user.uid));
+      if (snap.exists()) {
+        window._state = snap.data();
+      } else {
+        window._state = null;
+      }
+      window._currentUser = user;
+      window._onAuthReady(user, window._state);
     } else {
-      window._state = null;
+      window._currentUser = null;
+      window._onAuthReady(null, null);
     }
-    window._currentUser = user;
-    window._onAuthReady(user, window._state);
-  } else {
+  } catch(e) {
+    // If Firestore fails, fall back to auth screen instead of spinning forever
     window._currentUser = null;
     window._onAuthReady(null, null);
   }
