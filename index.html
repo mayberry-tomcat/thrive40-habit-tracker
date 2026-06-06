@@ -108,6 +108,7 @@ body {
 .site-bar {
   background: var(--teal); padding: 8px 16px;
   display: flex; align-items: center; justify-content: space-between;
+  position: relative; z-index: 2;
 }
 .site-bar a { color: rgba(255,255,255,0.7); font-size: 0.75rem; text-decoration: none; }
 .site-bar a:hover { color: var(--gold); }
@@ -200,6 +201,8 @@ body {
 .btn-primary { background: var(--pink); color: white; }
 .btn-primary:hover { background: #a83558; }
 .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+#confirm-habits-btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+#confirm-habits-btn:not(:disabled) { opacity: 1; }
 .btn-teal { background: var(--teal); color: white; }
 .btn-gold { background: var(--gold); color: var(--teal); }
 .btn-outline { background: transparent; border: 2px solid var(--teal); color: var(--teal); }
@@ -211,16 +214,19 @@ body {
 .forgot-link { text-align: right; margin-top: -8px; margin-bottom: 12px; }
 
 /* ── ONBOARDING ── */
-#screen-onboarding { background: var(--cream); }
-.onboard-header { background: var(--teal); padding: 28px 20px 22px; color: white; text-align: center; }
-.onboard-header h2 { font-size: 1.35rem; font-weight: 800; }
-.onboard-header p  { font-size: 0.82rem; color: rgba(255,255,255,0.72); margin-top: 5px; }
+#screen-onboarding { background: var(--teal); overflow: hidden; }
+.onboard-photo { position: fixed; inset: 0; background-image: url('https://lh3.googleusercontent.com/d/1YyhOOEDfbLGtIydPzcX-opejxG2TTKtE'); background-size: cover; background-position: center; z-index: 0; }
+.onboard-photo::after { content: ''; position: absolute; inset: 0; background: rgba(38,70,83,0.55); }
+.onboard-content { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.onboard-header { background: transparent; padding: 28px 20px 16px; text-align: center; }
+.onboard-header h2 { font-size: 1.35rem; font-weight: 800; color: white; }
+.onboard-header p  { font-size: 0.82rem; color: rgba(255,255,255,0.75); margin-top: 5px; }
 .progress-dots { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
 .dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.3); transition: background 0.3s; }
 .dot.active { background: var(--gold); }
 .scrollable { flex: 1; overflow-y: auto; padding: 16px 16px 90px; }
 
-.category-card { background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); }
+.category-card { background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); max-width: 540px; margin-left: auto; margin-right: auto; }
 .category-card.sleep     { border-top: 4px solid var(--teal); }
 .category-card.nutrition { border-top: 4px solid #2a9d8f; }
 .category-card.movement  { border-top: 4px solid var(--pink); }
@@ -362,7 +368,7 @@ body {
 </div>
 
 <!-- INSTALL BANNER -->
-<div id="install-banner" style="background:#e9c46a;padding:12px 16px;display:flex;align-items:flex-start;gap:10px;position:relative;">
+<div id="install-banner" style="background:#e9c46a;padding:12px 16px;display:flex;align-items:flex-start;gap:10px;position:relative;z-index:2;">
   <span style="font-size:1.2rem;flex-shrink:0;">📱</span>
   <div style="flex:1;">
     <div style="font-size:0.82rem;font-weight:800;color:#264653;margin-bottom:2px;">Get easy access on your phone!</div>
@@ -385,6 +391,15 @@ body {
       </div>
       <div class="tagline">(Instead of 75 Hard)</div>
       <div class="creator">Created by May Tom, RD · Functional Dietitian</div>
+    </div>
+
+    <!-- Hero Video -->
+    <div style="max-width:540px;width:calc(100% - 32px);margin:0 auto 14px;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+      <div style="position:relative;padding-bottom:56.25%;height:0;">
+        <iframe src="https://drive.google.com/file/d/1g9v3dOirpyPfr40b101kZJhn1TGwHNEU/preview"
+          style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;"
+          allow="autoplay" allowfullscreen></iframe>
+      </div>
     </div>
 
     <!-- Scroll indicator -->
@@ -577,7 +592,14 @@ body {
 
 <!-- ONBOARDING -->
 <div id="screen-onboarding" class="screen">
+  <div class="onboard-photo"></div>
+  <div class="onboard-content">
   <div class="onboard-header">
+    <div class="auth-top" style="padding:0;margin-bottom:8px;">
+      <div style="display:flex;align-items:baseline;justify-content:center;gap:10px;">
+        <span class="num" style="color:white;text-shadow:none;">40</span><span class="word" style="color:var(--gold);text-shadow:none;">Thrive</span>
+      </div>
+    </div>
     <h2>Choose Your Habits</h2>
     <p>Pick ONE from each category — you'll do these for 40 days</p>
     <div class="progress-dots">
@@ -586,6 +608,15 @@ body {
       <div class="dot" id="dot-2"></div>
     </div>
   </div>
+  <!-- Onboarding Video -->
+  <div style="max-width:540px;width:calc(100% - 32px);margin:8px auto 16px;border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.12);">
+    <div style="position:relative;padding-bottom:56.25%;height:0;">
+      <iframe src="https://drive.google.com/file/d/1LpAl0ciynQ8CVrhVw7jpppLqlIw4MGsm/preview"
+        style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;"
+        allow="autoplay" allowfullscreen></iframe>
+    </div>
+  </div>
+
   <div class="scrollable">
     <div class="category-card sleep">
       <div class="cat-header"><span class="cat-icon">🌙</span><div><div class="cat-title">Sleep &amp; Recovery</div><div class="cat-sub">Choose ONE habit</div></div></div>
@@ -605,9 +636,12 @@ body {
       <div class="habit-option movement" onclick="selectHabit('movement',1,this)"><span class="opt-num">2</span><span class="opt-text">Get <strong>7,500 steps</strong> in a day</span><span class="check-mark">✅</span></div>
       <div class="habit-option movement" onclick="selectHabit('movement',2,this)"><span class="opt-num">3</span><span class="opt-text">Complete <strong>3 strength training workouts/week</strong> (30 min minimum each)</span><span class="check-mark">✅</span></div>
     </div>
-    <button class="btn btn-primary" id="confirm-habits-btn" onclick="confirmHabits()" disabled>Start My 40 Days! 🎉</button>
-    <p class="text-sm mt-8">Your habits are locked in once the challenge begins.</p>
+    <div style="text-align:center;margin:16px 0 8px;">
+      <button id="confirm-habits-btn" onclick="confirmHabits()" disabled style="display:inline-block;width:auto;background:var(--pink);color:white;border:none;border-radius:50px;padding:16px 32px;font-size:1rem;font-weight:700;cursor:pointer;box-shadow:0 8px 28px rgba(196,69,105,0.45);transition:all 0.2s;">Start My 40 Days! 🎉</button>
+    </div>
+    <p class="text-sm mt-8" style="color:rgba(255,255,255,0.6);text-align:center;">Your habits are locked in once the challenge begins.</p>
   </div>
+  </div><!-- end onboard-content -->
 </div>
 
 <!-- MAIN APP -->
@@ -981,7 +1015,7 @@ function renderSettings(){
 }
 
 /* ─── NAVIGATION ─── */
-function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
 function showApp(){showScreen('screen-app');switchTab('today');renderAll();}
 function switchTab(tab){
   ['today','progress','settings'].forEach(t=>{document.getElementById('tab-'+t).style.display=t===tab?'block':'none';document.getElementById('nav-'+t).classList.toggle('active',t===tab);});
