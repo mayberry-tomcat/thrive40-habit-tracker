@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="40 Thrive">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#264653">
+<meta name="description" content="The 40 Thrive Challenge — 40 days of sustainable healthy habits. Free app by May Tom, RD.">
+<title>40 Thrive Challenge | May Tom, RD</title>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyANEN0uVVbp__H84e1rkve2uzMFIu5-ADY",
+  authDomain: "thrive-850e5.firebaseapp.com",
+  projectId: "thrive-850e5",
+  storageBucket: "thrive-850e5.firebasestorage.app",
+  messagingSenderId: "57506700353",
+  appId: "1:57506700353:web:d5522bd77bfae1ab6c3ac0",
+  measurementId: "G-KFWCPWTBLB"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// ── GOOGLE FORM for email capture ──
+// Replace FORM_ID and entry IDs once you create your Google Form
+const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdE3MTXxL7c1AeIyHb0-Li8TOYOMlIJZ2dd-K3Ho2SDjrWRHQ/formResponse';
+const FORM_ENTRY_NAME  = 'entry.2043239408';
+const FORM_ENTRY_EMAIL = 'entry.1257306087';
+const FORM_ENTRY_OPTIN = 'entry.202217649';
+
+window._auth = auth;
+window._db   = db;
+window._fbFns = { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink, doc, setDoc, getDoc, updateDoc };
+window._googleFormUrl  = GOOGLE_FORM_URL;
+window._formEntryName  = FORM_ENTRY_NAME;
+window._formEntryEmail = FORM_ENTRY_EMAIL;
+window._formEntryOptin = FORM_ENTRY_OPTIN;
+
+// Handle magic link sign-in when user returns from email link
+if (isSignInWithEmailLink(auth, window.location.href)) {
+  let email = window.localStorage.getItem('emailForSignIn');
+  if (!email) email = window.prompt('Please enter your email to confirm sign-in:');
+  signInWithEmailLink(auth, email, window.location.href)
+    .then(() => { window.localStorage.removeItem('emailForSignIn'); window.history.replaceState({}, document.title, window.location.pathname); })
+    .catch(e => alert('Sign-in link expired or already used. Please request a new one.'));
+}
+
+// Auth state listener
+onAuthStateChanged(auth, async (user) => {
+  try {
+    if (user) {
+      // Load user data from Firestore
+      const snap = await getDoc(doc(db, 'users', user.uid));
+      if (snap.exists()) {
+        window._state = snap.data();
+      } else {
+        window._state = null;
+      }
+      window._currentUser = user;
+      window._onAuthReady(user, window._state);
+    } else {
+      window._currentUser = null;
+      window._onAuthReady(null, null);
+    }
+  } catch(e) {
+    // If Firestore fails, fall back to auth screen instead of spinning forever
+    window._currentUser = null;
+    window._onAuthReady(null, null);
+  }
+});
+</script>
+
+<style>
+:root {
+  --teal:       #264653;
+  --teal-light: #2f5a6b;
+  --pink:       #c44569;
+  --gold:       #e9c46a;
+  --cream:      #f5e6ca;
+  --cream-dark: #ecdcb4;
+  --pink-bg:    #fbedf1;
+  --teal-bg:    #e8f0f3;
+  --text-dark:  #1a2c35;
+  --text-mid:   #5a6e76;
+  --radius:     16px;
+  --shadow:     0 4px 20px rgba(38,70,83,0.13);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--cream);
+  color: var(--text-dark);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.site-bar {
+  background: var(--teal); padding: 8px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative; z-index: 2;
+}
+.site-bar a { color: rgba(255,255,255,0.7); font-size: 0.75rem; text-decoration: none; }
+.site-bar a:hover { color: var(--gold); }
+.site-bar .logo { color: white; font-weight: 800; font-size: 0.82rem; }
+.site-bar .logo span { color: var(--gold); font-style: italic; }
+
+.screen { display: none; min-height: calc(100vh - 38px); }
+.screen.active { display: flex; flex-direction: column; }
+
+/* ── LOADING ── */
+#screen-loading {
+  background: var(--teal);
+  align-items: center; justify-content: center;
+}
+.loading-logo { text-align: center; color: white; }
+.loading-logo .num { font-size: 5rem; font-weight: 900; line-height: 0.9; }
+.loading-logo .word { font-size: 3rem; font-weight: 900; font-style: italic; color: var(--gold); }
+.loading-spinner { margin-top: 32px; width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.2); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── AUTH SCREENS ── */
+#screen-auth {
+  background: var(--teal);
+  position: relative; overflow: hidden;
+}
+.hero-photo {
+  position: fixed; inset: 0;
+  background-image: url('https://lh3.googleusercontent.com/d/1f4fI6YKXE2VbYcc-BYHpw3e-LwbXtiAf');
+  background-size: cover; background-position: center 15%; z-index: 0;
+}
+.hero-photo::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(to bottom, rgba(38,70,83,0.25) 0%, rgba(38,70,83,0.35) 50%, rgba(38,70,83,0.55) 100%);
+}
+.auth-content {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column;
+  min-height: calc(100vh - 38px);
+  overflow-y: auto;
+}
+.auth-top {
+  padding: 52px 24px 32px; text-align: center;
+  min-height: calc(100vh - 38px);
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+}
+.auth-top .num  { font-size: clamp(6rem, 16vw, 11rem); font-weight: 900; color: white; line-height: 0.9; text-shadow: 0 4px 30px rgba(0,0,0,0.4); }
+.auth-top .word { font-size: clamp(4rem, 11vw, 7.5rem); font-weight: 900; font-style: italic; color: var(--gold); line-height: 0.9; text-shadow: 0 4px 24px rgba(0,0,0,0.3); }
+.auth-top .tagline { color: var(--gold); font-size: clamp(1.2rem, 3.5vw, 1.8rem); font-weight: 700; margin: 18px 0 8px; letter-spacing: 0.02em; }
+.auth-top .creator { color: rgba(255,255,255,0.9); font-size: clamp(0.9rem, 2vw, 1.2rem); letter-spacing: 0.1em; text-transform: uppercase; }
+
+.auth-card {
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 24px 24px 0 0;
+  padding: 18px 24px 32px; margin-top: 16px;
+  box-shadow: 0 -8px 40px rgba(38,70,83,0.2);
+}
+.auth-tabs { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 2px solid #eee; }
+.auth-tab {
+  flex: 1; padding: 10px; text-align: center; font-size: 0.9rem;
+  font-weight: 700; color: var(--text-mid); cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s;
+}
+.auth-tab.active { color: var(--teal); border-bottom-color: var(--teal); }
+
+.auth-panel { display: none; }
+.auth-panel.active { display: block; }
+
+/* ── INPUTS & BUTTONS ── */
+.input-group { margin-bottom: 10px; }
+.input-group label { font-size: 0.75rem; font-weight: 700; color: var(--teal); display: block; margin-bottom: 5px; letter-spacing: 0.05em; text-transform: uppercase; }
+.input-group input {
+  width: 100%; padding: 10px 14px; border: 2px solid #dde4e8; border-radius: 12px;
+  font-size: 0.95rem; color: var(--text-dark); outline: none; transition: border-color 0.2s; background: rgba(245,230,202,0.7);
+}
+.input-group input:focus { border-color: var(--teal); background: white; }
+.pw-wrap { position: relative; }
+.pw-toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1rem; color: var(--teal); padding: 0; }
+
+.gdpr-box {
+  background: rgba(232,240,243,0.7); border-radius: 10px; padding: 9px 12px;
+  margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start;
+}
+.gdpr-box input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px; accent-color: var(--teal); cursor: pointer; }
+.gdpr-box label { font-size: 0.78rem; color: var(--text-mid); line-height: 1.5; cursor: pointer; }
+.gdpr-box label strong { color: var(--teal); }
+
+.btn { display: block; width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.2s; text-align: center; }
+.btn-primary { background: var(--pink); color: white; }
+.btn-primary:hover { background: #a83558; }
+.btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+#confirm-habits-btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+#confirm-habits-btn:not(:disabled) { opacity: 1; }
+.btn-teal { background: var(--teal); color: white; }
+.btn-gold { background: var(--gold); color: var(--teal); }
+.btn-outline { background: transparent; border: 2px solid var(--teal); color: var(--teal); }
+.btn-outline-pink { background: transparent; border: 2px solid var(--pink); color: var(--pink); }
+.btn-sm { padding: 9px 16px; font-size: 0.84rem; width: auto; }
+.btn-link { background: none; border: none; color: var(--teal); font-size: 0.8rem; text-decoration: underline; cursor: pointer; padding: 0; width: auto; }
+
+.auth-error { color: var(--pink); font-size: 0.8rem; margin-top: 8px; text-align: center; min-height: 20px; }
+.forgot-link { text-align: right; margin-top: -8px; margin-bottom: 12px; }
+
+/* ── ONBOARDING ── */
+#screen-onboarding { background: var(--teal); overflow: hidden; }
+.onboard-photo { position: fixed; inset: 0; background-image: url('https://lh3.googleusercontent.com/d/1YyhOOEDfbLGtIydPzcX-opejxG2TTKtE'); background-size: cover; background-position: center; z-index: 0; }
+.onboard-photo::after { content: ''; position: absolute; inset: 0; background: rgba(38,70,83,0.55); }
+.onboard-content { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.onboard-header { background: transparent; padding: 28px 20px 16px; text-align: center; }
+.onboard-header h2 { font-size: 1.35rem; font-weight: 800; color: white; }
+.onboard-header p  { font-size: 0.82rem; color: rgba(255,255,255,0.75); margin-top: 5px; }
+.progress-dots { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.3); transition: background 0.3s; }
+.dot.active { background: var(--gold); }
+.scrollable { flex: 1; overflow-y: auto; padding: 16px 16px 90px; }
+
+.category-card { background: white; border-radius: var(--radius); padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); max-width: 540px; margin-left: auto; margin-right: auto; }
+.category-card.sleep     { border-top: 4px solid var(--teal); }
+.category-card.nutrition { border-top: 4px solid #2a9d8f; }
+.category-card.movement  { border-top: 4px solid var(--pink); }
+.cat-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.cat-icon  { font-size: 1.6rem; }
+.cat-title { font-size: 1rem; font-weight: 800; color: var(--teal); }
+.cat-sub   { font-size: 0.72rem; color: var(--text-mid); }
+
+.habit-option {
+  border: 2px solid #e4ecef; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
+  cursor: pointer; transition: all 0.2s; position: relative; display: flex; align-items: flex-start; gap: 10px;
+}
+.habit-option:hover { border-color: var(--teal); }
+.habit-option.selected.sleep     { border-color: var(--teal); background: var(--teal-bg); }
+.habit-option.selected.nutrition { border-color: #2a9d8f; background: #e6f6f4; }
+.habit-option.selected.movement  { border-color: var(--pink); background: var(--pink-bg); }
+.opt-num { font-size: 0.68rem; font-weight: 800; color: white; background: var(--teal); border-radius: 50%; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+.habit-option.selected.movement  .opt-num { background: var(--pink); }
+.habit-option.selected.nutrition .opt-num { background: #2a9d8f; }
+.opt-text   { font-size: 0.85rem; color: var(--text-dark); line-height: 1.4; flex: 1; }
+.check-mark { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; display: none; }
+.habit-option.selected .check-mark { display: block; }
+
+/* ── APP ── */
+#screen-app { background: var(--cream); }
+.app-header {
+  background: var(--teal); color: white;
+  padding: 14px 20px 12px; display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(38,70,83,0.25);
+}
+.app-logo { font-size: 1.3rem; font-weight: 900; color: white; }
+.app-logo span { color: var(--gold); font-style: italic; }
+.app-sub { font-size: 0.62rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.55); text-transform: uppercase; }
+.day-badge { background: var(--pink); color: white; font-weight: 800; font-size: 0.85rem; padding: 5px 12px; border-radius: 20px; }
+
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0; background: white;
+  border-top: 1px solid #dde4e8; display: flex; z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.nav-btn { flex: 1; padding: 10px 0 12px; text-align: center; background: none; border: none; cursor: pointer; font-size: 0.63rem; color: #a0b0b8; display: flex; flex-direction: column; align-items: center; gap: 3px; transition: color 0.2s; }
+.nav-btn.active { color: var(--teal); }
+.nav-icon { font-size: 1.4rem; }
+
+.streak-banner { background: var(--teal); color: white; border-radius: var(--radius); padding: 18px 20px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+.streak-num   { font-size: 3rem; font-weight: 900; color: var(--gold); line-height: 1; }
+.streak-label { font-size: 0.72rem; color: rgba(255,255,255,0.65); margin-top: 2px; }
+.streak-pct   { font-size: 0.95rem; font-weight: 800; color: var(--gold); }
+.progress-bar-wrap { background: rgba(255,255,255,0.2); border-radius: 99px; height: 6px; margin-top: 8px; width: 100px; }
+.progress-bar-fill { height: 6px; border-radius: 99px; background: var(--gold); transition: width 0.5s; }
+
+.today-card { background: white; border-radius: var(--radius); padding: 18px; margin-bottom: 14px; box-shadow: var(--shadow); }
+.today-card h3 { font-size: 0.88rem; font-weight: 800; color: var(--teal); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.habit-check { display: flex; align-items: flex-start; gap: 12px; padding: 11px 0; border-bottom: 1px solid #f0f4f5; cursor: pointer; }
+.habit-check:last-child { border-bottom: none; }
+.checkbox { width: 27px; height: 27px; border: 2.5px solid #c8d8de; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; flex-shrink: 0; transition: all 0.2s; margin-top: 1px; }
+.checkbox.checked       { background: var(--teal); border-color: var(--teal);  color: white; }
+.checkbox.checked-green { background: #2a9d8f;     border-color: #2a9d8f; color: white; }
+.checkbox.checked-pink  { background: var(--pink);  border-color: var(--pink);  color: white; }
+.check-label { font-size: 0.85rem; color: var(--text-dark); line-height: 1.4; flex: 1; }
+.check-label.done { text-decoration: line-through; color: #aabec5; }
+.cat-tag { font-size: 0.65rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 3px; }
+
+.strength-section { background: var(--pink-bg); border-radius: 12px; padding: 14px; margin-top: 8px; }
+.strength-section h4 { font-size: 0.8rem; font-weight: 800; color: var(--pink); margin-bottom: 10px; }
+.week-dots { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+.week-dot { width: 34px; height: 34px; border-radius: 50%; background: white; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 0.62rem; font-weight: 700; color: #aaa; }
+.week-dot.done { background: var(--pink); border-color: var(--pink); color: white; }
+.week-dot.today-dot { border-color: var(--teal); color: var(--teal); }
+.week-dot.today-dot.done { border-color: var(--pink); color: white; }
+.recovery-btn { background: white; border: 2px solid var(--pink); color: var(--pink); border-radius: 10px; padding: 9px 14px; font-size: 0.8rem; font-weight: 700; cursor: pointer; width: 100%; transition: all 0.2s; }
+.recovery-btn.active { background: var(--pink); color: white; }
+
+.all-done-banner  { background: linear-gradient(135deg,#2a9d8f,#21867a); color:white; border-radius:var(--radius); padding:18px; text-align:center; margin-bottom:14px; }
+.missed-banner    { background: var(--pink); color:white; border-radius:var(--radius); padding:18px; margin-bottom:14px; text-align:center; }
+.all-done-banner h3, .missed-banner h3 { font-size:1rem; margin-bottom:4px; }
+.all-done-banner p,  .missed-banner p  { font-size:0.8rem; opacity:0.9; }
+
+.quote-card { background: var(--teal); border-radius: var(--radius); padding: 20px; margin-bottom: 14px; text-align: center; }
+.quote-card blockquote { color:white; font-size:0.88rem; line-height:1.65; font-style:italic; }
+.quote-card blockquote em { color:var(--gold); font-style:normal; font-weight:700; }
+.quote-card cite { color:var(--gold); font-size:0.72rem; display:block; margin-top:10px; }
+
+.stats-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:14px; }
+.stat-card { background:white; border-radius:12px; padding:14px 10px; text-align:center; box-shadow:var(--shadow); }
+.stat-num   { font-size:2rem; font-weight:900; color:var(--teal); line-height:1; }
+.stat-label { font-size:0.62rem; color:var(--text-mid); margin-top:4px; text-transform:uppercase; letter-spacing:0.04em; }
+
+.progress-grid { background:white; border-radius:var(--radius); padding:18px; box-shadow:var(--shadow); overflow-x:auto; margin-bottom:14px; }
+.grid-table  { min-width:580px; }
+.grid-header { display:grid; grid-template-columns:34px repeat(40,1fr); gap:2px; margin-bottom:4px; }
+.grid-header span { font-size:0.52rem; font-weight:700; text-align:center; color:var(--text-mid); }
+.grid-row    { display:grid; grid-template-columns:34px repeat(40,1fr); gap:2px; margin-bottom:4px; }
+.grid-label  { font-size:1rem; display:flex; align-items:center; justify-content:center; }
+.grid-cell   { aspect-ratio:1; border-radius:3px; display:flex; align-items:center; justify-content:center; }
+.grid-cell.empty   { background:#eef2f4; }
+.grid-cell.future  { background:#f5f8f9; }
+.grid-cell.done    { background:var(--teal); }
+.grid-cell.done.nutrition { background:#2a9d8f; }
+.grid-cell.done.movement  { background:var(--pink); }
+.grid-cell.missed  { background:#fce8ed; }
+.grid-cell.today   { box-shadow:0 0 0 2px var(--gold); }
+
+.settings-item { background:white; border-radius:12px; padding:18px; margin-bottom:10px; box-shadow:var(--shadow); }
+.settings-item h4 { font-size:0.88rem; font-weight:800; color:var(--teal); margin-bottom:5px; }
+.settings-item p  { font-size:0.78rem; color:var(--text-mid); line-height:1.5; }
+.habit-summary { font-size:0.8rem; color:var(--text-mid); line-height:1.7; }
+.habit-summary strong { color:var(--teal); }
+
+.modal-overlay { position:fixed; inset:0; background:rgba(38,70,83,0.55); display:none; align-items:center; justify-content:center; z-index:1000; padding:20px; }
+.modal-overlay.show { display:flex; }
+.modal { background:white; border-radius:var(--radius); padding:28px 24px; width:100%; max-width:380px; text-align:center; }
+.modal h3 { font-size:1.2rem; color:var(--pink); margin-bottom:8px; }
+.modal p  { font-size:0.84rem; color:var(--text-mid); margin-bottom:20px; line-height:1.55; }
+.modal-btns { display:flex; gap:10px; }
+
+@keyframes pop { 0%{transform:scale(1)} 50%{transform:scale(1.13)} 100%{transform:scale(1)} }
+.pop { animation:pop 0.28s ease; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+.fade-up { animation:fadeUp 0.4s ease; }
+.mt-8{margin-top:8px} .mt-16{margin-top:16px}
+.text-sm{font-size:0.8rem;color:var(--text-mid);text-align:center}
+</style>
+</head>
+<body>
+
+<div class="site-bar">
+  <button onclick="goBackToHero()" style="background:none;border:none;color:rgba(255,255,255,0.7);font-size:0.75rem;text-decoration:none;cursor:pointer;transition:color 0.2s;padding:0;font-family:inherit;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='rgba(255,255,255,0.7)'">← Home</button>
+  <span class="logo">May Tom, <span>RD</span></span>
+</div>
+
+<!-- LOADING -->
+<div id="screen-loading" class="screen active">
+  <div class="loading-logo">
+    <div class="num">40</div>
+    <div class="word">Thrive</div>
+    <div style="display:flex;justify-content:center;"><div class="loading-spinner"></div></div>
+  </div>
+</div>
+
+<!-- INSTALL BANNER -->
+<div id="install-banner" style="background:#e9c46a;padding:12px 16px;display:flex;align-items:flex-start;gap:10px;position:relative;z-index:2;">
+  <span style="font-size:1.2rem;flex-shrink:0;">📱</span>
+  <div style="flex:1;">
+    <div style="font-size:0.82rem;font-weight:800;color:#264653;margin-bottom:2px;">Get easy access on your phone!</div>
+    <div style="font-size:0.75rem;color:#264653;line-height:1.5;">
+      <strong>iPhone:</strong> Tap the Share button (□↑) in Safari, then "Add to Home Screen".<br>
+      <strong>Android:</strong> Tap the menu (⋮) in Chrome, then "Add to Home Screen".
+    </div>
+  </div>
+  <button onclick="document.getElementById('install-banner').style.display='none'" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#264653;flex-shrink:0;padding:0;line-height:1;">✕</button>
+</div>
+
+<!-- AUTH / HERO -->
+<div id="screen-auth" class="screen">
+  <div class="hero-photo"></div>
+  <div class="auth-content">
+    <!-- Logo -->
+    <div class="auth-top">
+      <div style="display:flex;align-items:baseline;justify-content:center;gap:10px;">
+        <span class="num">40</span><span class="word">Thrive</span>
+      </div>
+      <div class="tagline">(Instead of 75 Hard)</div>
+      <div class="creator">Created by May Tom, RD · Functional Dietitian</div>
+    </div>
+
+    <!-- Hero Video -->
+    <div style="max-width:540px;width:calc(100% - 32px);margin:0 auto 14px;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+      <div style="position:relative;padding-bottom:56.25%;height:0;">
+        <iframe id="hero-video" src="https://player.vimeo.com/video/1199045230?badge=0&autopause=0&player_id=0&app_id=58479&muted=1&loop=1"
+          style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;"
+          allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
+          referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+      </div>
+    </div>
+
+    <!-- Scroll indicator -->
+    <div style="text-align:center;padding:16px 0 8px;animation:bounce 2s infinite;">
+      <div style="color:rgba(255,255,255,0.6);font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">Scroll to learn more</div>
+      <div style="color:var(--gold);font-size:1.2rem;">↓</div>
+    </div>
+
+    <!-- Challenge copy — scrolls over fixed photo -->
+    <div style="padding:0 16px 0;display:flex;flex-direction:column;align-items:center;">
+
+      <!-- What is it -->
+      <div style="background:rgba(38,70,83,0.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:24px;padding:24px 20px;margin-bottom:14px;max-width:540px;width:100%;">
+        <p style="color:var(--gold);font-size:0.7rem;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:10px;">✦ A FREE 40-Day Challenge</p>
+        <h2 style="color:white;font-size:1.5rem;font-weight:900;line-height:1.2;margin-bottom:14px;">Real habits. Real results.<br><em style="color:var(--gold);">No extremes required.</em></h2>
+        <p style="color:rgba(255,255,255,0.85);font-size:0.86rem;line-height:1.7;margin-bottom:16px;">If you've ever started a health challenge and quit by week two — this is for you. 40 Thrive isn't about perfection or punishment. It's about choosing <em>one</em> simple habit from three key areas and showing up for 40 days.</p>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+          <div style="display:flex;gap:12px;align-items:center;background:rgba(255,255,255,0.08);border-radius:12px;padding:10px 14px;">
+            <span style="font-size:1.3rem;">🌙</span>
+            <div><div style="color:var(--gold);font-size:0.7rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;">Sleep & Recovery</div><div style="color:rgba(255,255,255,0.8);font-size:0.8rem;">One habit that genuinely restores you</div></div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:center;background:rgba(255,255,255,0.08);border-radius:12px;padding:10px 14px;">
+            <span style="font-size:1.3rem;">🌿</span>
+            <div><div style="color:var(--gold);font-size:0.7rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;">Nutrition</div><div style="color:rgba(255,255,255,0.8);font-size:0.8rem;">One habit built around real food, not rules</div></div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:center;background:rgba(255,255,255,0.08);border-radius:12px;padding:10px 14px;">
+            <span style="font-size:1.3rem;">💪</span>
+            <div><div style="color:var(--gold);font-size:0.7rem;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;">Movement</div><div style="color:rgba(255,255,255,0.8);font-size:0.8rem;">One habit that fits your body and your schedule</div></div>
+          </div>
+        </div>
+        <div style="border-left:3px solid var(--gold);padding-left:14px;margin-bottom:0;">
+          <p style="color:rgba(255,255,255,0.78);font-size:0.82rem;font-style:italic;line-height:1.6;">"You don't need to overhaul your entire life. You just need the right habits, done consistently. That's where the magic happens."</p>
+          <p style="color:var(--gold);font-size:0.72rem;font-weight:700;margin-top:6px;">— May Tom, RD</p>
+        </div>
+      </div>
+
+      <!-- CTA -->
+      <div style="text-align:center;margin-bottom:12px;">
+        <button onclick="openAuthModal('signup')" style="display:inline-block;width:auto;background:var(--pink);color:white;border:none;border-radius:50px;padding:16px 32px;font-size:1rem;font-weight:700;cursor:pointer;box-shadow:0 8px 28px rgba(196,69,105,0.45);">🎉 Join Free — Start My 40 Days</button>
+      </div>
+      <div style="text-align:center;margin-bottom:20px;">
+        <button class="btn-link" onclick="openAuthModal('login')" style="color:rgba(255,255,255,0.75);font-size:0.84rem;">Already joined? <strong style="color:var(--gold);">Sign in here →</strong></button>
+      </div>
+
+      <!-- Bio -->
+      <div style="background:rgba(255,255,255,0.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:24px;overflow:hidden;margin-bottom:0;max-width:540px;width:100%;">
+
+        <!-- Photo -->
+        <div style="width:100%;height:280px;overflow:hidden;position:relative;">
+          <img src="https://lh3.googleusercontent.com/d/1aDp3lAkYmbOGLzLeRcBxysJYLsTYuS5k"
+               alt="May Tom, RD"
+               style="width:100%;height:100%;object-fit:cover;object-position:center 20%;">
+          <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 50%,rgba(255,255,255,0.95) 100%);"></div>
+        </div>
+
+        <div style="padding:4px 22px 28px;">
+          <p style="color:var(--pink);font-size:0.7rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;">Meet Your Guide</p>
+          <h3 style="color:var(--teal);font-size:1.25rem;font-weight:900;line-height:1.2;margin-bottom:4px;">May Tom, RD</h3>
+          <p style="color:var(--text-mid);font-size:0.76rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:16px;">Functional Medicine Dietitian · 15+ Years Experience</p>
+
+          <p style="color:var(--text-dark);font-size:0.88rem;line-height:1.75;margin-bottom:12px;">Hi, I'm May! I'm a nerdy functional medicine dietitian who's spent almost 15 years in the field — helping everyone from CEOs to celebrities at a high-end destination resort, to thinking critically alongside the best integrative medicine doctors in supporting patients struggling with chronic, complex diseases.</p>
+
+          <p style="color:var(--text-dark);font-size:0.88rem;line-height:1.75;margin-bottom:12px;">What I noticed across all of them — from the ultra-privileged to the ultra-sick — is that <strong style="color:var(--teal);">everyone still needed the same basic habits to thrive.</strong> The fundamentals aren't boring. They're the whole game.</p>
+
+          <p style="color:var(--text-dark);font-size:0.88rem;line-height:1.75;margin-bottom:16px;">That's why I created my own <strong style="color:var(--teal);">Thrive Again Method</strong> and the <strong style="color:var(--teal);">Thrive 40 Project</strong> — a group program where women in midlife get expert-guided support in an intimate community setting to truly learn how to thrive again. This is our birthright. <em>Let's reclaim it together.</em></p>
+
+          <div style="border-left:3px solid var(--gold);padding-left:14px;margin-bottom:20px;">
+            <p style="color:var(--text-mid);font-size:0.82rem;line-height:1.6;font-style:italic;">If you want to know more about my services or whether we're a good fit, click below to set up a time to chat!</p>
+          </div>
+
+          <a href="https://calendar.app.google/tThrrV9Lk9fuqdKv7" target="_blank" style="display:block;text-align:center;background:var(--pink);color:white;border-radius:12px;padding:15px;font-weight:700;font-size:0.92rem;text-decoration:none;box-shadow:0 6px 20px rgba(196,69,105,0.3);">📅 Book a Free Discovery Call</a>
+          <p style="text-align:center;font-size:0.72rem;color:var(--text-mid);margin-top:8px;">No pressure — just a conversation about where you are and where you want to be.</p>
+
+          <!-- YouTube -->
+          <div style="margin-top:20px;background:var(--teal-bg);border-radius:14px;padding:16px 18px;text-align:center;">
+            <p style="font-size:0.85rem;color:var(--teal);line-height:1.6;margin-bottom:14px;">Want to learn more from me? Watch my YouTube videos for a download from me to you! 🎁</p>
+            <a href="https://www.youtube.com/@maytomrd" target="_blank" style="display:inline-flex;align-items:center;gap:10px;background:var(--teal);color:white;border-radius:10px;padding:12px 20px;font-weight:700;font-size:0.9rem;text-decoration:none;box-shadow:0 4px 14px rgba(38,70,83,0.3);">
+              <svg width="22" height="16" viewBox="0 0 22 16" fill="#FF0000" xmlns="http://www.w3.org/2000/svg"><path d="M21.54 2.5A2.76 2.76 0 0 0 19.6.53C17.88 0 11 0 11 0S4.12 0 2.4.53A2.76 2.76 0 0 0 .46 2.5 29 29 0 0 0 0 8a29 29 0 0 0 .46 5.5A2.76 2.76 0 0 0 2.4 15.47C4.12 16 11 16 11 16s6.88 0 8.6-.53a2.76 2.76 0 0 0 1.94-1.97A29 29 0 0 0 22 8a29 29 0 0 0-.46-5.5ZM8.75 11.38V4.62L14.5 8l-5.75 3.38Z"/><polygon points="8.75,4.62 8.75,11.38 14.5,8" fill="white"/></svg>
+              Watch on YouTube
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:24px 0;text-align:center;color:rgba(255,255,255,0.5);font-size:0.72rem;">
+        © 2024 May Tom, RD · maytomrd.com
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}
+</style>
+
+<!-- SUCCESS MODAL -->
+<div class="modal-overlay" id="modal-success" style="align-items:center;justify-content:center;">
+  <div class="modal" style="background:linear-gradient(135deg, #2a9d8f, #264653);color:white;box-shadow:0 12px 48px rgba(42,157,143,0.4);">
+    <div style="font-size:4rem;margin-bottom:12px;animation:pulse 0.8s ease-in-out;">🎉</div>
+    <h3 style="color:white;font-size:1.4rem;margin-bottom:8px;">You're all set!</h3>
+    <p style="color:rgba(255,255,255,0.9);font-size:0.9rem;">Welcome to 40 Thrive. Let's pick your habits...</p>
+  </div>
+</div>
+
+<!-- AUTH POPUP MODAL -->
+<div class="modal-overlay" id="modal-auth" style="align-items:stretch;justify-content:flex-end;padding:0;">
+  <div style="background:white;border-radius:24px 0 0 24px;padding:28px 24px 40px;width:34%;min-width:300px;max-width:420px;height:100%;overflow-y:auto;box-shadow:-8px 0 40px rgba(38,70,83,0.2);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div style="font-size:1rem;font-weight:900;color:var(--teal);">40 <span style="color:var(--pink);font-style:italic;">Thrive</span></div>
+      <button onclick="closeModal('modal-auth')" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#aaa;line-height:1;">✕</button>
+    </div>
+
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="switchAuthTab('signup')">Join the Challenge</div>
+      <div class="auth-tab" onclick="switchAuthTab('login')">Sign In</div>
+    </div>
+
+    <!-- SIGN UP -->
+    <div id="panel-signup" class="auth-panel active">
+      <div class="input-group">
+        <label>Your Name</label>
+        <input type="text" id="signup-name" placeholder="e.g. May Tom" maxlength="50">
+      </div>
+      <div class="input-group">
+        <label>Email Address</label>
+        <input type="email" id="signup-email" placeholder="you@email.com">
+      </div>
+      <div class="input-group">
+        <label>Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="signup-password" placeholder="At least 6 characters">
+          <button type="button" class="pw-toggle" onclick="togglePw('signup-password',this)">👁</button>
+        </div>
+      </div>
+      <div class="gdpr-box">
+        <input type="checkbox" id="signup-optin">
+        <label for="signup-optin">
+          I'd like to receive occasional health tips and announcements from <strong>May Tom, RD</strong>. Your information will <strong>never be sold or shared</strong>, and you can unsubscribe anytime.
+        </label>
+      </div>
+      <button class="btn btn-primary" onclick="doSignup()">Start My 40 Days! 🎉</button>
+      <p class="auth-error" id="signup-error"></p>
+      <p class="text-sm mt-8" style="font-size:0.7rem;color:var(--text-mid);">By signing up you agree to our privacy policy. We respect your data.</p>
+    </div>
+
+    <!-- SIGN IN -->
+    <div id="panel-login" class="auth-panel">
+      <div class="input-group">
+        <label>Email Address</label>
+        <input type="email" id="login-email" placeholder="you@email.com">
+      </div>
+
+      <!-- Password section -->
+      <div id="login-password-section">
+        <div class="input-group">
+          <label>Password</label>
+          <input type="password" id="login-password" placeholder="Your password">
+        </div>
+        <div class="forgot-link">
+          <button class="btn-link" onclick="doForgotPassword()">Forgot password?</button>
+        </div>
+        <button class="btn btn-teal" onclick="doLogin()">Sign In & Track Progress</button>
+        <div style="display:flex;align-items:center;gap:10px;margin:14px 0;">
+          <div style="flex:1;height:1px;background:#eee;"></div>
+          <span style="font-size:0.72rem;color:#aaa;">or</span>
+          <div style="flex:1;height:1px;background:#eee;"></div>
+        </div>
+        <button class="btn btn-outline" onclick="showMagicLink()" style="font-size:0.85rem;">✉️ Send me a sign-in link instead</button>
+      </div>
+
+      <!-- Magic link section -->
+      <div id="login-magic-section" style="display:none;">
+        <div style="background:var(--teal-bg);border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+          <p style="font-size:0.82rem;color:var(--teal);line-height:1.55;">We'll email you a secure link — just click it to sign in instantly. No password needed!</p>
+        </div>
+        <button class="btn btn-teal" onclick="doMagicLink()">✉️ Send My Sign-In Link</button>
+        <div style="text-align:center;margin-top:12px;">
+          <button class="btn-link" onclick="showPasswordLogin()">← Use password instead</button>
+        </div>
+        <p id="magic-success" style="color:var(--teal);font-size:0.82rem;text-align:center;margin-top:10px;display:none;">✅ Link sent! Check your inbox and click the link to sign in.</p>
+      </div>
+
+      <p class="auth-error" id="login-error"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ONBOARDING -->
+<div id="screen-onboarding" class="screen">
+  <div class="onboard-photo"></div>
+  <div class="onboard-content">
+  <div class="onboard-header">
+    <div class="auth-top" style="padding:0;margin-bottom:8px;">
+      <div style="display:flex;align-items:baseline;justify-content:center;gap:10px;">
+        <span class="num" style="color:white;text-shadow:none;">40</span><span class="word" style="color:var(--gold);text-shadow:none;">Thrive</span>
+      </div>
+    </div>
+    <h2>Choose Your Habits</h2>
+    <p>Pick ONE from each category — you'll do these for 40 days</p>
+    <div class="progress-dots">
+      <div class="dot active" id="dot-0"></div>
+      <div class="dot" id="dot-1"></div>
+      <div class="dot" id="dot-2"></div>
+    </div>
+  </div>
+  <!-- Onboarding Video -->
+  <div style="max-width:540px;width:calc(100% - 32px);margin:8px auto 16px;border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.12);">
+    <div style="position:relative;padding-bottom:56.25%;height:0;">
+      <iframe id="onboard-video" src="https://player.vimeo.com/video/1199045537?badge=0&autopause=0&player_id=0&app_id=58479&muted=1"
+        style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;"
+        allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
+        referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+    </div>
+  </div>
+
+  <div class="scrollable">
+    <div class="category-card sleep">
+      <div class="cat-header"><span class="cat-icon">🌙</span><div><div class="cat-title">Sleep &amp; Recovery</div><div class="cat-sub">Choose ONE habit</div></div></div>
+      <div class="habit-option sleep" onclick="selectHabit('sleep',0,this)"><span class="opt-num">1</span><span class="opt-text">Go to bed &amp; wake at the <strong>SAME time</strong> every day (aim for 7–8 hours)</span><span class="check-mark">✅</span></div>
+      <div class="habit-option sleep" onclick="selectHabit('sleep',1,this)"><span class="opt-num">2</span><span class="opt-text">Get <strong>10 minutes of morning sunlight</strong> within 60 minutes of waking</span><span class="check-mark">✅</span></div>
+      <div class="habit-option sleep" onclick="selectHabit('sleep',2,this)"><span class="opt-num">3</span><span class="opt-text"><strong>No screens 1 hour</strong> before bed</span><span class="check-mark">✅</span></div>
+    </div>
+    <div class="category-card nutrition">
+      <div class="cat-header"><span class="cat-icon">🌿</span><div><div class="cat-title">Nutrition</div><div class="cat-sub">Choose ONE habit</div></div></div>
+      <div class="habit-option nutrition" onclick="selectHabit('nutrition',0,this)"><span class="opt-num">1</span><span class="opt-text">Drink <strong>20 oz of filtered water</strong> upon waking</span><span class="check-mark">✅</span></div>
+      <div class="habit-option nutrition" onclick="selectHabit('nutrition',1,this)"><span class="opt-num">2</span><span class="opt-text">Eat <strong>5 DIFFERENT vegetables</strong> per day</span><span class="check-mark">✅</span></div>
+      <div class="habit-option nutrition" onclick="selectHabit('nutrition',2,this)"><span class="opt-num">3</span><span class="opt-text">Have <strong>30+ grams of protein</strong> at breakfast</span><span class="check-mark">✅</span></div>
+    </div>
+    <div class="category-card movement">
+      <div class="cat-header"><span class="cat-icon">🏋️</span><div><div class="cat-title">Movement</div><div class="cat-sub">Choose ONE habit</div></div></div>
+      <div class="habit-option movement" onclick="selectHabit('movement',0,this)"><span class="opt-num">1</span><span class="opt-text">Do <strong>40 squats &amp; 20 push-ups</strong> after each meal</span><span class="check-mark">✅</span></div>
+      <div class="habit-option movement" onclick="selectHabit('movement',1,this)"><span class="opt-num">2</span><span class="opt-text">Get <strong>7,500 steps</strong> in a day</span><span class="check-mark">✅</span></div>
+      <div class="habit-option movement" onclick="selectHabit('movement',2,this)"><span class="opt-num">3</span><span class="opt-text">Complete <strong>3 strength training workouts/week</strong> (30 min minimum each)</span><span class="check-mark">✅</span></div>
+    </div>
+    <div style="text-align:center;margin:16px 0 8px;">
+      <button id="confirm-habits-btn" onclick="confirmHabits()" disabled style="display:inline-block;width:auto;background:var(--pink);color:white;border:none;border-radius:50px;padding:16px 32px;font-size:1rem;font-weight:700;cursor:pointer;box-shadow:0 8px 28px rgba(196,69,105,0.45);transition:all 0.2s;">Start My 40 Days! 🎉</button>
+    </div>
+    <p class="text-sm mt-8" style="color:rgba(255,255,255,0.6);text-align:center;">Your habits are locked in once the challenge begins.</p>
+  </div>
+  </div><!-- end onboard-content -->
+</div>
+
+<!-- MAIN APP -->
+<div id="screen-app" class="screen">
+  <div class="app-header">
+    <div><div class="app-logo">40 <span>Thrive</span></div><div class="app-sub">by May Tom, RD</div></div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div id="user-greeting" style="font-size:0.82rem;color:rgba(255,255,255,0.8);"></div>
+      <span class="day-badge" id="current-day-badge">Day 1</span>
+    </div>
+  </div>
+
+  <div id="tab-today" class="scrollable" style="display:none;">
+    <div id="missed-banner" class="missed-banner" style="display:none;"><h3>😢 You missed a day</h3><p>Every champion has setbacks. You're back at Day 1 — let's go!</p></div>
+    <div id="all-done-banner" class="all-done-banner" style="display:none;"><h3>🎉 All habits done today!</h3><p>You're building something lasting. See you tomorrow!</p></div>
+    <div class="streak-banner">
+      <div><div class="streak-num" id="streak-display">1</div><div class="streak-label">current day</div></div>
+      <div style="text-align:right;">
+        <div class="streak-pct" id="streak-pct">0%</div>
+        <div style="color:rgba(255,255,255,0.55);font-size:0.65rem;margin-bottom:6px;">complete</div>
+        <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
+      </div>
+    </div>
+    <div class="today-card" id="today-checklist"></div>
+    <div id="strength-panel"></div>
+    <div class="quote-card">
+      <blockquote>"You're <em>braver</em> than you believe, <em>stronger</em> than you seem, and <em>smarter</em> than you think."</blockquote>
+      <cite>— A.A. Milne</cite>
+    </div>
+  </div>
+
+  <div id="tab-progress" class="scrollable" style="display:none;">
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-num" id="stat-day">1</div><div class="stat-label">Current Day</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-done">0</div><div class="stat-label">Days Done</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-left">40</div><div class="stat-label">Days Left</div></div>
+    </div>
+    <div class="progress-grid">
+      <div style="font-size:0.78rem;font-weight:800;color:var(--teal);margin-bottom:10px;">40-Day Tracker</div>
+      <div class="grid-table">
+        <div class="grid-header" id="grid-header"></div>
+        <div class="grid-row" id="grid-sleep"></div>
+        <div class="grid-row" id="grid-nutrition"></div>
+        <div class="grid-row" id="grid-movement"></div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:14px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:5px;font-size:0.7rem;"><div style="width:12px;height:12px;border-radius:2px;background:var(--teal);"></div> Sleep</div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:0.7rem;"><div style="width:12px;height:12px;border-radius:2px;background:#2a9d8f;"></div> Nutrition</div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:0.7rem;"><div style="width:12px;height:12px;border-radius:2px;background:var(--pink);"></div> Movement</div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:0.7rem;"><div style="width:12px;height:12px;border-radius:2px;background:#fce8ed;border:1px solid #ddd;"></div> Missed</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-settings" class="scrollable" style="display:none;">
+    <div class="settings-item">
+      <h4>👤 Your Account</h4>
+      <p id="account-email" style="font-weight:600;color:var(--teal);margin-top:4px;"></p>
+      <button class="btn btn-outline btn-sm" onclick="doSignOut()" style="margin-top:12px;">Sign Out</button>
+    </div>
+    <div class="settings-item">
+      <h4>📋 Your Chosen Habits</h4>
+      <div class="habit-summary" id="habit-summary"></div>
+    </div>
+    <div class="settings-item">
+      <h4>📅 Challenge Started</h4>
+      <p id="start-date-display"></p>
+    </div>
+    <div style="margin-top:20px;">
+      <button class="btn btn-outline-pink" onclick="showResetModal()">Reset &amp; Start Over</button>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" id="nav-today" onclick="switchTab('today')"><span class="nav-icon">☀️</span>Today</button>
+    <button class="nav-btn" id="nav-progress" onclick="switchTab('progress')"><span class="nav-icon">📊</span>Progress</button>
+    <button class="nav-btn" id="nav-settings" onclick="switchTab('settings')"><span class="nav-icon">⚙️</span>Settings</button>
+  </nav>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-reset">
+  <div class="modal">
+    <h3>Reset Challenge?</h3>
+    <p>This will erase all your progress and you'll start fresh from Day 1.</p>
+    <div class="modal-btns"><button class="btn btn-outline" onclick="closeModal('modal-reset')">Cancel</button><button class="btn btn-primary" onclick="resetAll()">Yes, Reset</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-complete">
+  <div class="modal">
+    <div style="font-size:3rem;">🏆</div>
+    <h3 style="color:var(--teal);margin-top:8px;">You Did It!</h3>
+    <p>You completed the full <strong>40 Thrive Challenge</strong>! May Tom, RD is so proud of you!</p>
+    <button class="btn btn-gold" onclick="closeModal('modal-complete')" style="margin-top:4px;">Celebrate! 🎉</button>
+  </div>
+</div>
+
+<!-- FORGOT TO TRACK MODAL -->
+<div class="modal-overlay" id="modal-forgot" style="align-items:center;justify-content:center;">
+  <div class="modal" style="max-width:420px;text-align:left;">
+    <h3 style="color:var(--teal);text-align:center;margin-bottom:16px;">Oops! 😊</h3>
+    <p style="text-align:center;margin-bottom:20px;">Did you forget to log yesterday? No worries — let's fill it in before we reset.</p>
+    <div id="forgot-habits" style="margin-bottom:16px;"></div>
+    <div class="modal-btns" style="flex-direction:column;gap:8px;">
+      <button class="btn btn-primary" onclick="confirmForgottenDay()">Got it! Reset now →</button>
+      <button class="btn btn-outline" onclick="skipBackfill()">Nope, just reset</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ─── CONSTANTS ─── */
+const HABITS={sleep:['Go to bed & wake at the SAME time daily (7–8 hrs)','10 min morning sunlight within 60 min of waking','No screens 1 hour before bed'],nutrition:['Drink 20 oz of filtered water upon waking','Eat 5 DIFFERENT vegetables per day','30+ grams of protein at breakfast'],movement:['40 squats & 20 push-ups after each meal','7,500 steps in a day','3 strength training sessions/week (30 min min)']};
+const CAT_COLORS={sleep:'var(--teal)',nutrition:'#2a9d8f',movement:'var(--pink)'};
+const CAT_ICONS={sleep:'🌙',nutrition:'🌿',movement:'🏋️'};
+const CAT_NAMES={sleep:'Sleep & Recovery',nutrition:'Nutrition',movement:'Movement'};
+const CATS=['sleep','nutrition','movement'];
+
+let state=null, selectedHabits={sleep:null,nutrition:null,movement:null};
+
+/* ─── DATE HELPERS ─── */
+function todayStr(){return new Date().toISOString().slice(0,10);}
+function getWeekStart(d){const dt=new Date(d+'T12:00:00');const day=dt.getDay();dt.setDate(dt.getDate()+(day===0?-6:1-day));return dt.toISOString().slice(0,10);}
+function getWeekDates(d){const s=getWeekStart(d);return Array.from({length:7},(_,i)=>{const dt=new Date(s+'T12:00:00');dt.setDate(dt.getDate()+i);return dt.toISOString().slice(0,10);});}
+function formatDate(d){return new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});}
+
+/* ─── FIRESTORE SAVE ─── */
+async function saveState(){
+  if(!window._currentUser||!state)return;
+  const {doc,setDoc}=window._fbFns;
+  await setDoc(doc(window._db,'users',window._currentUser.uid),state);
+}
+
+/* ─── AUTH CALLBACKS ─── */
+window._onAuthReady=function(user,loadedState){
+  if(!user){showScreen('screen-auth');return;}
+  if(!loadedState||!loadedState.habits){
+    state=null;showScreen('screen-onboarding');return;
+  }
+  state=loadedState;
+  const missed=checkMissedDay();
+  const popupVisible=document.getElementById('modal-success')&&document.getElementById('modal-success').classList.contains('show');
+  const delay=popupVisible?2500:0;
+  if(!missed){
+    setTimeout(()=>showApp(),delay);
+  } else {
+    // If missed day popup is showing, don't call showApp yet
+    // proceedWithReset() will call showApp after user responds
+    showScreen('screen-app');
+  }
+};
+
+/* ─── BACK BUTTON ─── */
+function goBackToHero(){
+  showScreen('screen-auth');
+  setTimeout(()=>window.scrollTo(0,0),100);
+}
+
+/* ─── AUTH ACTIONS ─── */
+function openAuthModal(tab){
+  switchAuthTab(tab);
+  document.getElementById('modal-auth').classList.add('show');
+}
+
+function switchAuthTab(tab){
+  document.querySelectorAll('.auth-tab').forEach((t,i)=>t.classList.toggle('active',['signup','login'][i]===tab));
+  document.getElementById('panel-signup').classList.toggle('active',tab==='signup');
+  document.getElementById('panel-login').classList.toggle('active',tab==='login');
+}
+
+function togglePw(id,btn){const el=document.getElementById(id);el.type=el.type==='password'?'text':'password';btn.textContent=el.type==='password'?'👁':'🙈';}
+
+async function doSignup(){
+  const name=document.getElementById('signup-name').value.trim();
+  const email=document.getElementById('signup-email').value.trim();
+  const pw=document.getElementById('signup-password').value;
+  const optin=document.getElementById('signup-optin').checked;
+  const errEl=document.getElementById('signup-error');
+  errEl.textContent='';
+  if(!name){errEl.textContent='Please enter your name.';return;}
+  if(!email){errEl.textContent='Please enter your email.';return;}
+  if(pw.length<6){errEl.textContent='Password must be at least 6 characters.';return;}
+  try{
+    const {createUserWithEmailAndPassword,doc,setDoc}=window._fbFns;
+    const cred=await createUserWithEmailAndPassword(window._auth,email,pw);
+    // Save signup info to Firestore
+    await setDoc(doc(window._db,'users',cred.user.uid),{
+      name,email,optin,signupDate:todayStr(),
+      habits:null,startDate:null,logs:{},strengthSessions:{},completed:false
+    });
+    // Submit to Google Form if opted in
+    if(optin) submitToGoogleForm(name,email,true);
+    window._currentUser=cred.user;
+    document.getElementById('modal-auth').classList.remove('show');
+    document.getElementById('modal-success').classList.add('show');
+    setTimeout(()=>{document.getElementById('modal-success').classList.remove('show');},2000);
+  }catch(e){
+    const msgs={'auth/email-already-in-use':'That email is already registered. Try signing in instead.','auth/invalid-email':'Please enter a valid email address.','auth/weak-password':'Password must be at least 6 characters.','auth/network-request-failed':'Network error — check your connection and try again.'};
+    errEl.textContent=msgs[e.code]||e.message.replace('Firebase: ','').replace(/\s*\(auth\/[^)]+\)/,'');
+  }
+}
+
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pw=document.getElementById('login-password').value;
+  const errEl=document.getElementById('login-error');
+  errEl.textContent='';
+  try{
+    await window._fbFns.signInWithEmailAndPassword(window._auth,email,pw);
+    document.getElementById('modal-auth').classList.remove('show');
+    document.getElementById('modal-success').classList.add('show');
+    document.querySelector('#modal-success h3').textContent='Welcome back!';
+    document.querySelector('#modal-success p').textContent='Your tracker is ready...';
+    setTimeout(()=>{document.getElementById('modal-success').classList.remove('show');},2000);
+  }catch(e){
+    errEl.textContent='Incorrect email or password. Please try again.';
+  }
+}
+
+function showMagicLink(){
+  document.getElementById('login-password-section').style.display='none';
+  document.getElementById('login-magic-section').style.display='block';
+}
+function showPasswordLogin(){
+  document.getElementById('login-magic-section').style.display='none';
+  document.getElementById('login-password-section').style.display='block';
+}
+
+async function doMagicLink(){
+  const email=document.getElementById('login-email').value.trim();
+  const errEl=document.getElementById('login-error');
+  errEl.textContent='';
+  if(!email){errEl.textContent='Please enter your email address above first.';return;}
+  const actionCodeSettings={
+    url:'https://maytomrd.com/',
+    handleCodeInApp:true
+  };
+  try{
+    await window._fbFns.sendSignInLinkToEmail(window._auth,email,actionCodeSettings);
+    window.localStorage.setItem('emailForSignIn',email);
+    document.getElementById('magic-success').style.display='block';
+  }catch(e){
+    errEl.textContent='Could not send link. Please check your email and try again.';
+  }
+}
+
+async function doForgotPassword(){
+  const email=document.getElementById('login-email').value.trim();
+  if(!email){document.getElementById('login-error').textContent='Enter your email above first.';return;}
+  try{
+    await window._fbFns.sendPasswordResetEmail(window._auth,email);
+    document.getElementById('login-error').style.color='var(--teal)';
+    document.getElementById('login-error').textContent='Reset email sent! Check your inbox.';
+  }catch(e){document.getElementById('login-error').textContent='Could not send reset email.';}
+}
+
+async function doSignOut(){
+  await window._fbFns.signOut(window._auth);
+  state=null;showScreen('screen-auth');
+}
+
+/* ─── GOOGLE FORM SUBMISSION ─── */
+function submitToGoogleForm(name,email,optin){
+  const body=new FormData();
+  body.append(window._formEntryName,name);
+  body.append(window._formEntryEmail,email);
+  body.append(window._formEntryOptin,optin?'Yes':'No');
+  fetch(window._googleFormUrl,{method:'POST',body,mode:'no-cors'}).catch(()=>{});
+}
+
+/* ─── ONBOARDING ─── */
+function selectHabit(cat,idx,el){
+  el.closest('.category-card').querySelectorAll('.habit-option').forEach(o=>o.classList.remove('selected'));
+  el.classList.add('selected','pop');setTimeout(()=>el.classList.remove('pop'),280);
+  selectedHabits[cat]=idx;
+  CATS.forEach((c,i)=>document.getElementById('dot-'+i).classList.toggle('active',selectedHabits[c]!==null));
+  document.getElementById('confirm-habits-btn').disabled=!CATS.every(c=>selectedHabits[c]!==null);
+}
+async function confirmHabits(){
+  const {doc,updateDoc}=window._fbFns;
+  const update={habits:{...selectedHabits},startDate:todayStr(),logs:{},strengthSessions:{},completed:false};
+  state={...state,...update};
+  await saveState();
+  ensureTodayLog();showApp();
+}
+
+/* ─── CORE LOGIC ─── */
+function ensureTodayLog(){const t=todayStr();if(!state.logs[t])state.logs[t]={sleep:false,nutrition:false,movement:false,recovery:false};}
+function isDayComplete(d,log){if(!log)return false;const isStr=state.habits.movement===2;if(!log.sleep||!log.nutrition)return false;if(isStr)return log.movement||log.recovery;return!!log.movement;}
+function countCompletedDays(){return Object.entries(state.logs).filter(([d,l])=>isDayComplete(d,l)).length;}
+function computeCurrentDay(){const t=todayStr();return Object.entries(state.logs).filter(([d,l])=>d<t&&isDayComplete(d,l)).length+1;}
+
+function checkMissedDay(){
+  const today=todayStr();
+  const logDates=Object.keys(state.logs||{}).sort();
+  const last=logDates[logDates.length-1];
+  if(!last||last===today){ensureTodayLog();return false;}
+  const yDt=new Date(today+'T12:00:00');yDt.setDate(yDt.getDate()-1);
+  const y=yDt.toISOString().slice(0,10);
+  const missed=(last<y)||(last===y&&!isDayComplete(y,state.logs[y]));
+  if(missed){
+    // Show forgot popup instead of immediately resetting
+    window._missedDay=y;
+    showForgotPopup(y);
+    return true;
+  }
+  ensureTodayLog();return false;
+}
+
+function showForgotPopup(missedDate){
+  const log=state.logs[missedDate]||{sleep:false,nutrition:false,movement:false,recovery:false};
+  let html='<p style="font-size:0.75rem;color:var(--text-mid);margin-bottom:12px;">Log for <strong>'+formatDate(missedDate)+'</strong>:</p>';
+  CATS.forEach(cat=>{
+    const idx=state.habits[cat],text=HABITS[cat][idx];
+    const checked=log[cat];
+    html+=`<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;padding:10px;background:#f5f5f5;border-radius:8px;">
+      <input type="checkbox" id="forgot-${cat}" ${checked?'checked':''} style="width:18px;height:18px;margin-top:2px;accent-color:var(--teal);cursor:pointer;">
+      <label for="forgot-${cat}" style="font-size:0.82rem;line-height:1.4;flex:1;cursor:pointer;">${text}</label>
+    </div>`;
+  });
+  document.getElementById('forgot-habits').innerHTML=html;
+  document.getElementById('modal-forgot').classList.add('show');
+}
+
+function confirmForgottenDay(){
+  const missedDate=window._missedDay;
+  const log=state.logs[missedDate]||{sleep:false,nutrition:false,movement:false,recovery:false};
+  CATS.forEach(cat=>{
+    log[cat]=document.getElementById('forgot-'+cat).checked;
+  });
+  state.logs[missedDate]=log;
+  proceedWithReset();
+}
+
+function skipBackfill(){
+  proceedWithReset();
+}
+
+function proceedWithReset(){
+  closeModal('modal-forgot');
+  // Archive current attempt before resetting
+  if(!state.previousAttempts)state.previousAttempts=[];
+  state.previousAttempts.push({
+    startDate:state.startDate,
+    habits:{...state.habits},
+    logs:{...state.logs},
+    daysCompleted:countCompletedDays()
+  });
+  state.logs={};
+  state.strengthSessions={};
+  ensureTodayLog();
+  saveState();
+  showApp();
+}
+
+async function toggleHabit(cat){
+  if(cat==='movement'&&state.habits.movement===2)return;
+  state.logs[todayStr()][cat]=!state.logs[todayStr()][cat];
+  checkDayComplete();await saveState();renderToday();
+}
+async function handleStrengthTap(){
+  const t=todayStr(),log=state.logs[t];
+  if(log.movement){const wk=getWeekStart(t);if(state.strengthSessions[wk])state.strengthSessions[wk]=state.strengthSessions[wk].filter(d=>d!==t);log.movement=false;}
+  else if(!log.recovery){const wk=getWeekStart(t);if(!state.strengthSessions[wk])state.strengthSessions[wk]=[];if(!state.strengthSessions[wk].includes(t))state.strengthSessions[wk].push(t);log.movement=true;log.recovery=false;}
+  checkDayComplete();await saveState();renderToday();
+}
+async function toggleRecovery(){
+  const t=todayStr(),log=state.logs[t];log.recovery=!log.recovery;
+  if(log.recovery){log.movement=false;const wk=getWeekStart(t);if(state.strengthSessions[wk])state.strengthSessions[wk]=state.strengthSessions[wk].filter(d=>d!==t);}
+  checkDayComplete();await saveState();renderToday();
+}
+function checkDayComplete(){
+  const today=todayStr(),done=isDayComplete(today,state.logs[today]);
+  document.getElementById('all-done-banner').style.display=done?'block':'none';
+  if(countCompletedDays()>=40&&!state.completed){state.completed=true;saveState();setTimeout(()=>document.getElementById('modal-complete').classList.add('show'),1200);}
+  const day=computeCurrentDay();
+  document.getElementById('current-day-badge').textContent='Day '+day;
+  document.getElementById('streak-display').textContent=day;
+  const pct=Math.round((countCompletedDays()/40)*100);
+  document.getElementById('streak-pct').textContent=pct+'%';
+  document.getElementById('progress-fill').style.width=pct+'%';
+}
+
+/* ─── RENDER ─── */
+function renderAll(){
+  const day=computeCurrentDay(),done=countCompletedDays(),pct=Math.round((done/40)*100);
+  document.getElementById('user-greeting').textContent=state.name||'';
+  document.getElementById('current-day-badge').textContent='Day '+day;
+  document.getElementById('streak-display').textContent=day;
+  document.getElementById('streak-pct').textContent=pct+'%';
+  document.getElementById('progress-fill').style.width=pct+'%';
+  document.getElementById('stat-day').textContent=day;
+  document.getElementById('stat-done').textContent=done;
+  document.getElementById('stat-left').textContent=Math.max(0,40-done);
+  renderToday();
+}
+function renderToday(){
+  const today=todayStr(),log=state.logs[today]||{};
+  let html=`<h3>Today's Check-In <span style="font-size:0.72rem;color:var(--text-mid);font-weight:400;">${formatDate(today)}</span></h3>`;
+  CATS.forEach(cat=>{
+    const idx=state.habits[cat],text=HABITS[cat][idx];
+    const isStr=cat==='movement'&&idx===2;
+    const checked=isStr?log.movement:log[cat];
+    const chkCls=checked?(cat==='nutrition'?'checked-green':cat==='movement'?'checked-pink':'checked'):'';
+    const handler=isStr?'handleStrengthTap()':`toggleHabit('${cat}')`;
+    html+=`<div class="habit-check" onclick="${handler}"><div class="checkbox ${chkCls}">${checked?'✓':''}</div><div style="flex:1;"><div class="cat-tag" style="color:${CAT_COLORS[cat]};">${CAT_ICONS[cat]} ${CAT_NAMES[cat]}</div><div class="check-label ${checked?'done':''}">${text}</div></div></div>`;
+  });
+  document.getElementById('today-checklist').innerHTML=html;
+  if(state.habits.movement===2)renderStrengthPanel(log);
+  else document.getElementById('strength-panel').innerHTML='';
+  document.getElementById('all-done-banner').style.display=isDayComplete(today,log)?'block':'none';
+}
+function renderStrengthPanel(log){
+  const today=todayStr(),wk=getWeekStart(today),sessions=state.strengthSessions[wk]||[];
+  const weekDates=getWeekDates(today),labels=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  let dots=weekDates.map((d,i)=>{const isToday=d===today,has=sessions.includes(d);return`<div class="week-dot ${has?'done':''} ${isToday?'today-dot':''}"><span>${has?'✓':labels[i]}</span></div>`;}).join('');
+  const daysLeft=weekDates.filter(d=>d>=today).length,need=3-sessions.length;
+  document.getElementById('strength-panel').innerHTML=`<div class="today-card"><div class="strength-section"><h4>💪 Strength This Week: ${sessions.length}/3 sessions</h4><div class="week-dots">${dots}</div>${sessions.length<3&&daysLeft>0?`<p style="font-size:0.72rem;color:var(--pink);margin-bottom:8px;">Need ${need} more session${need>1?'s':''} this week</p>`:''}${sessions.length>=3?`<p style="font-size:0.72rem;color:#2a9d8f;font-weight:700;margin-bottom:8px;">✅ Weekly goal met!</p>`:''}<button class="recovery-btn ${log.recovery?'active':''}" onclick="toggleRecovery()">${log.recovery?'✅ Active Recovery Day (marked)':'🧘 Mark as Active Recovery Day'}</button><p style="font-size:0.68rem;color:var(--text-mid);margin-top:7px;line-height:1.45;">Mark rest days as recovery so you're not penalized. Tap Movement above to log a strength session.</p></div></div>`;
+}
+function renderProgress(){
+  let hdr='<span></span>';for(let d=1;d<=40;d++)hdr+=`<span>${d}</span>`;
+  document.getElementById('grid-header').innerHTML=hdr;
+  const today=todayStr();
+  const days=Array.from({length:40},(_,i)=>{const d=new Date(state.startDate+'T12:00:00');d.setDate(d.getDate()+i);return d.toISOString().slice(0,10);});
+  [{key:'sleep',id:'grid-sleep',cls:''},{key:'nutrition',id:'grid-nutrition',cls:'nutrition'},{key:'movement',id:'grid-movement',cls:'movement'}].forEach(cat=>{
+    let row=`<div class="grid-label">${CAT_ICONS[cat.key]}</div>`;
+    days.forEach(date=>{const log=state.logs[date];const isToday=date===today,isFuture=date>today;let cls='empty';if(isFuture)cls='future';else if(log&&isDayComplete(date,log))cls=`done ${cat.cls}`;else if(!isFuture&&date<today)cls='missed';row+=`<div class="grid-cell ${cls} ${isToday?'today':''}"></div>`;});
+    document.getElementById(cat.id).innerHTML=row;
+  });
+  const day=computeCurrentDay(),done=countCompletedDays();
+  document.getElementById('stat-day').textContent=day;document.getElementById('stat-done').textContent=done;document.getElementById('stat-left').textContent=Math.max(0,40-done);
+
+  // Show previous attempts in greyed out
+  if(state.previousAttempts&&state.previousAttempts.length>0){
+    let prevHtml='<div style="margin-top:24px;padding-top:24px;border-top:2px solid #eee;"><div style="font-size:0.78rem;font-weight:800;color:#aaa;margin-bottom:16px;">📋 Previous Attempts</div>';
+    state.previousAttempts.forEach((attempt,i)=>{
+      const attemptNum=i+1;
+      const attemptDaysCompleted=attempt.daysCompleted||0;
+      prevHtml+=`<div style="background:#f5f5f5;border-radius:12px;padding:12px;margin-bottom:10px;">
+        <div style="font-size:0.8rem;font-weight:700;color:#999;margin-bottom:6px;">Attempt ${attemptNum}: ${attemptDaysCompleted} days (${formatDate(attempt.startDate)})</div>
+        <div style="display:grid;grid-template-columns:repeat(40,1fr);gap:2px;">`;
+      const attemptDays=Array.from({length:40},(_,j)=>{const d=new Date(attempt.startDate+'T12:00:00');d.setDate(d.getDate()+j);return d.toISOString().slice(0,10);});
+      attemptDays.forEach(date=>{const log=attempt.logs[date];let cls='empty';if(log&&isDayComplete(date,log))cls='done';else if(date<today)cls='missed';prevHtml+=`<div style="aspect-ratio:1;border-radius:2px;background:${cls==='done'?'#d4d4d4':cls==='missed'?'#f0f0f0':'#fafafa'};"></div>`;});
+      prevHtml+='</div></div>';
+    });
+    prevHtml+='</div>';
+    const gridContainer=document.querySelector('.progress-grid');
+    if(gridContainer){
+      const existingPrev=gridContainer.querySelector('[data-previous-attempts]');
+      if(existingPrev)existingPrev.remove();
+      const wrapper=document.createElement('div');wrapper.setAttribute('data-previous-attempts','true');wrapper.innerHTML=prevHtml;
+      gridContainer.appendChild(wrapper);
+    }
+  }
+}
+function renderSettings(){
+  if(window._currentUser)document.getElementById('account-email').textContent=window._currentUser.email;
+  document.getElementById('start-date-display').textContent=formatDate(state.startDate);
+  document.getElementById('habit-summary').innerHTML=CATS.map(cat=>`<div><strong>${CAT_ICONS[cat]} ${CAT_NAMES[cat]}:</strong> ${HABITS[cat][state.habits[cat]]}</div>`).join('');
+}
+
+/* ─── NAVIGATION ─── */
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+  var pause='{"method":"pause"}';
+  if(id!=='screen-auth'){var f=document.getElementById('hero-video');if(f)f.contentWindow.postMessage(pause,'https://player.vimeo.com');}
+  if(id!=='screen-onboarding'){var f=document.getElementById('onboard-video');if(f)f.contentWindow.postMessage(pause,'https://player.vimeo.com');}
+}
+function showApp(){showScreen('screen-app');switchTab('today');renderAll();}
+function switchTab(tab){
+  ['today','progress','settings'].forEach(t=>{document.getElementById('tab-'+t).style.display=t===tab?'block':'none';document.getElementById('nav-'+t).classList.toggle('active',t===tab);});
+  if(tab==='progress')renderProgress();if(tab==='settings')renderSettings();
+}
+function showResetModal(){document.getElementById('modal-reset').classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+async function resetAll(){
+  // Archive current attempt before resetting
+  if(!state.previousAttempts)state.previousAttempts=[];
+  state.previousAttempts.push({
+    startDate:state.startDate,
+    habits:{...state.habits},
+    logs:{...state.logs},
+    daysCompleted:countCompletedDays()
+  });
+  state={...state,habits:null,startDate:null,logs:{},strengthSessions:{},completed:false};
+  await saveState();closeModal('modal-reset');
+  selectedHabits={sleep:null,nutrition:null,movement:null};
+  showScreen('screen-onboarding');
+}
+</script>
+<script src="https://player.vimeo.com/api/player.js"></script>
+</body>
+</html>
